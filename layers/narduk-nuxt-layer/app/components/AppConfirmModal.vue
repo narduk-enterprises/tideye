@@ -19,7 +19,7 @@
 
 const modelValue = defineModel<boolean>({ default: false })
 
-const props = withDefaults(
+const _props = withDefaults(
   defineProps<{
     /** Modal title. */
     title?: string
@@ -32,7 +32,7 @@ const props = withDefaults(
     /** Cancel button label. */
     cancelLabel?: string
     /** Confirm button color. */
-    confirmColor?: string
+    confirmColor?: 'error' | 'info' | 'primary' | 'secondary' | 'success' | 'warning' | 'neutral'
     /** Whether the confirm button shows a loading spinner. */
     loading?: boolean
     /** Whether the modal can be closed by clicking outside or pressing Escape. */
@@ -51,6 +51,7 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
+  'update:modelValue': [value: boolean]
   confirm: []
   cancel: []
 }>()

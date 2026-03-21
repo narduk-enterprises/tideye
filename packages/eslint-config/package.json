@@ -7,10 +7,11 @@
     ".": "./eslint.config.mjs"
   },
   "scripts": {
+    "test": "echo 'No tests in workspace shim — tests live in @narduk-enterprises/eslint-config'",
     "format:check": "prettier --check \"**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}\" --ignore-path ../../.gitignore"
   },
   "dependencies": {
-    "@narduk-enterprises/eslint-config": "^1.0.12",
+    "@narduk-enterprises/eslint-config": "^1.0.13",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import-x": "^4.16.1",
     "eslint-plugin-regexp": "^3.0.0",

@@ -641,13 +641,13 @@ function writeTemplateVersion(
   const existing = existsSync(versionPath) ? readFileSync(versionPath, 'utf-8') : null
   const existingSha = existing?.match(/^sha=(.+)$/m)?.[1] || ''
   const existingTemplate = existing?.match(/^template=(.+)$/m)?.[1] || ''
-  if (existingSha === templateSha && existingTemplate === 'tideye') {
+  if (existingSha === templateSha && existingTemplate === 'narduk-nuxt-template') {
     return false
   }
 
   const content = [
     `sha=${templateSha}`,
-    'template=tideye',
+    'template=narduk-nuxt-template',
     `synced=${new Date().toISOString()}`,
     '',
   ].join('\n')

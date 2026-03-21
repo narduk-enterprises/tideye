@@ -46,8 +46,7 @@ export default defineNuxtConfig({
   site: {
     url: process.env.SITE_URL || 'https://tideye.nard.uk',
     name: 'Tideye',
-    description:
-      'Tideye — powered by Nuxt 4 and Cloudflare Workers.',
+    description: 'Tideye — powered by Nuxt 4 and Cloudflare Workers.',
     defaultLocale: 'en',
   },
 

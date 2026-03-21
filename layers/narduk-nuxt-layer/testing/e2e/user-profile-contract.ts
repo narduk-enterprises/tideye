@@ -18,8 +18,8 @@ import {
  * Apps invoke this with minimal configuration.
  *
  * Usage:
- *   import { defineSharedUserProfileContract } from '…/testing/e2e/user-profile-contract.ts'
- *   defineSharedUserProfileContract({
+ *   import { useSharedUserProfileContract } from '…/testing/e2e/user-profile-contract.ts'
+ *   useSharedUserProfileContract({
  *     appName: 'myapp',
  *     settingsPath: '/settings',
  *   })
@@ -32,15 +32,8 @@ interface SharedUserProfileContractOptions {
   loginPath?: string
 }
 
-export function defineSharedUserProfileContract(
-  options: SharedUserProfileContractOptions = {},
-) {
-  const {
-    appName = 'app',
-    basePath = '/',
-    settingsPath = '/settings',
-    loginPath = '/login',
-  } = options
+export function useSharedUserProfileContract(options: SharedUserProfileContractOptions = {}) {
+  const { appName = 'app', basePath = '/' } = options
 
   test.describe(`${appName} shared user profile contract`, () => {
     test.beforeAll(async ({ browser, baseURL }) => {
