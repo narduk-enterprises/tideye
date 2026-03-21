@@ -1,31 +1,48 @@
 <script setup lang="ts">
 const config = useRuntimeConfig()
-const appName = config.public.appName || 'Our App'
+const appName = config.public.appName || 'TideEye'
 
 useSeo({
-  title: `${appName} — Coming Soon`,
-  description: `${appName} is launching soon. Something amazing is on the way.`,
+  title: `${appName} — Marine Telemetry Platform`,
+  description: `${appName} provides real-time vessel monitoring, marine telemetry, and passage planning for your boat.`,
 })
 useWebPageSchema({
-  name: `${appName} — Coming Soon`,
-  description: `${appName} is launching soon. Something amazing is on the way.`,
+  name: `${appName} — Marine Telemetry Platform`,
+  description: `${appName} provides real-time vessel monitoring, marine telemetry, and passage planning for your boat.`,
 })
 
 const features = [
   {
-    icon: 'i-lucide-zap',
-    title: 'Lightning Fast',
-    description: 'Deployed on the edge for sub-50ms responses worldwide.',
+    icon: 'i-lucide-gauge',
+    title: 'Live Dashboard',
+    description: 'Real-time widgets for battery, wind, depth, navigation, and 16+ more systems.',
   },
   {
-    icon: 'i-lucide-palette',
-    title: 'Beautiful Design',
-    description: 'Crafted with care using modern design principles.',
+    icon: 'i-lucide-waves',
+    title: 'SignalK Integration',
+    description:
+      'Direct connection to your vessel via SignalK protocol with automatic local/remote failover.',
   },
   {
-    icon: 'i-lucide-shield-check',
-    title: 'Enterprise Ready',
-    description: 'Built on production-grade infrastructure from day one.',
+    icon: 'i-lucide-route',
+    title: 'Passage Planning',
+    description: 'Log and review your passages with historical data and route visualization.',
+  },
+  {
+    icon: 'i-lucide-map',
+    title: 'Marine Charts',
+    description: 'Track your vessel position and visualize routes on interactive marine maps.',
+  },
+  {
+    icon: 'i-lucide-battery-charging',
+    title: 'Electrical Monitoring',
+    description: 'Monitor battery banks, solar panels, inverters, and shore chargers in real-time.',
+  },
+  {
+    icon: 'i-lucide-smartphone',
+    title: 'Mobile First',
+    description:
+      'Touch-optimized interface with PWA support — works offline on your phone or tablet.',
   },
 ]
 </script>
@@ -34,16 +51,16 @@ const features = [
   <UPage>
     <UPageHero
       :title="appName"
-      description="Something amazing is on the way."
+      description="Real-time vessel monitoring and marine telemetry platform."
       :ui="{ title: 'text-5xl sm:text-6xl', description: 'text-xl text-muted' }"
     >
       <template #links>
-        <UBadge
-          color="primary"
-          variant="subtle"
+        <UButton
+          to="/dashboard"
+          label="Open Dashboard"
+          icon="i-lucide-gauge"
           size="lg"
-          label="Coming Soon"
-          icon="i-lucide-rocket"
+          color="primary"
         />
       </template>
     </UPageHero>
@@ -59,8 +76,8 @@ const features = [
     </UPageGrid>
 
     <UPageSection :ui="{ wrapper: 'py-16 sm:py-24 text-center' }">
-      <p class="text-lg text-muted mb-2">Stay tuned — we're building something great.</p>
-      <p class="text-sm text-dimmed">Powered by Nuxt 4 &amp; Cloudflare Workers</p>
+      <p class="text-lg text-muted mb-2">Your vessel, always in sight.</p>
+      <p class="text-sm text-dimmed">Powered by Nuxt 4, SignalK &amp; Cloudflare Workers</p>
     </UPageSection>
   </UPage>
 </template>

@@ -24,8 +24,15 @@
   "dependencies": {
     "@narduk-enterprises/narduk-nuxt-template-layer": "workspace:*",
     "@narduk-enterprises/eslint-config": "^1.0.12",
+    "@signalk/client": "*",
+    "@vueuse/core": "^13.0.0",
+    "convert-units": "^2.3.4",
+    "dayjs": "^1.11.13",
     "drizzle-orm": "^0.45.1",
+    "nanoid": "^5.1.5",
     "nuxt": "^4.3.1",
+    "pinia": "^3.0.3",
+    "vuedraggable": "^4.1.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

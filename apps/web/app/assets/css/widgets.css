@@ -1,0 +1,170 @@
+/* Base Font Families */
+:root {
+  --font-primary: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  --font-mono: 'SF Mono', monospace;
+  --font-weight-light: 300;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+}
+
+/* Text Sizes */
+.large-value {
+  font-size: 5rem;
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-medium);
+  color: rgba(255, 255, 255, 0.95);
+  letter-spacing: -0.02em;
+  text-shadow:
+    0 0 10px rgba(255, 255, 255, 0.3),
+    0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+.primary-value {
+  font-size: 2.75rem;
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-light);
+  color: rgba(255, 255, 255, 0.95);
+  letter-spacing: -0.02em;
+  text-shadow:
+    0 0 10px rgba(255, 255, 255, 0.3),
+    0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+.secondary-value {
+  font-size: 1.5rem;
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-regular);
+  color: rgba(255, 255, 255, 0.8);
+  letter-spacing: -0.01em;
+}
+
+.unit-label {
+  font-size: 1rem;
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-regular);
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.widget-title {
+  font-size: 0.875rem;
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-regular);
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Colors */
+:root {
+  --color-success: rgb(76, 217, 100);
+  --color-warning: #ffa000;
+  --color-danger: #ff5252;
+  --color-info: #4b89dc;
+  --color-text-primary: rgba(255, 255, 255, 0.95);
+  --color-text-secondary: rgba(255, 255, 255, 0.7);
+  --color-text-tertiary: rgba(255, 255, 255, 0.5);
+}
+
+/* Common Effects */
+.glow-effect {
+  text-shadow:
+    0 0 10px rgba(255, 255, 255, 0.3),
+    0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+.glow-filter {
+  filter: url(#outerGlow);
+}
+
+/* Common Widget Base Styles */
+.widget-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  padding: 1rem;
+}
+
+/* SVG Filters and Effects */
+.ambient-light {
+  animation: pulseAmbient 4s ease-in-out infinite;
+}
+
+/* Common Animations */
+@keyframes pulseAmbient {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes glowPulse {
+  0% {
+    filter: url(#outerGlow) brightness(1);
+  }
+  50% {
+    filter: url(#outerGlow) brightness(1.2);
+  }
+  100% {
+    filter: url(#outerGlow) brightness(1);
+  }
+}
+/* Common SVG Definitions */
+.svg-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.svg-defs filter {
+  x: -50%;
+  y: -50%;
+  width: 200%;
+  height: 200%;
+}
+
+.svg-defs feGaussianBlur {
+  in: SourceGraphic;
+  stddeviation: 1;
+  result: blur1;
+}
+
+.svg-defs feGaussianBlur:nth-child(2) {
+  in: blur1;
+  stddeviation: 2;
+  result: blur2;
+}
+
+.svg-defs feGaussianBlur:nth-child(3) {
+  in: blur2;
+  stddeviation: 4;
+  result: blur3;
+}
+
+.svg-defs feMerge {
+  in: blur3;
+}
+
+.svg-defs feMergeNode:nth-child(1) {
+  in: blur3;
+}
+
+.svg-defs feMergeNode:nth-child(2) {
+  in: blur2;
+}
+
+.svg-defs feMergeNode:nth-child(3) {
+  in: blur1;
+}
+
+.svg-defs feMergeNode:nth-child(4) {
+  in: SourceGraphic;
+}
