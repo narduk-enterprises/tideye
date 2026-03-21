@@ -1,0 +1,28 @@
+{
+  "$schema": "https://unpkg.com/wrangler@latest/config-schema.json",
+  "name": "tideye",
+  "main": ".output/server/index.mjs",
+  "assets": {
+    "directory": ".output/public"
+  },
+  "compatibility_date": "2026-03-03",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "tideye-db",
+      "database_id": "c99f831e-597d-4421-8a01-e863fc15585a"
+    }
+  ],
+  "routes": [
+    {
+      "pattern": "tideye.nard.uk",
+      "custom_domain": true
+    }
+  ]
+}
