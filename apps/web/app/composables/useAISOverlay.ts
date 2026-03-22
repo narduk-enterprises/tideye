@@ -217,7 +217,7 @@ function svgDiamond(color: string): string {
     </svg></div>`
 }
 
-type ShipCategoryKey =
+export type ShipCategoryKey =
   | 'fishing'
   | 'towing'
   | 'sailing'
@@ -231,7 +231,13 @@ type ShipCategoryKey =
   | 'default'
   | 'atRest'
 
-const CATEGORIES = {
+/** Filterable category keys (excludes internal-only keys). */
+export const FILTERABLE_CATEGORIES: ShipCategoryKey[] = [
+  'fishing', 'towing', 'sailing', 'pleasure', 'highSpeed',
+  'service', 'passenger', 'cargo', 'tanker', 'military',
+]
+
+export const CATEGORIES = {
   fishing: { label: 'Fishing', color: '#16a34a', iconSvg: (h) => svgFishing('#16a34a', h) },
   towing: { label: 'Towing/Tug', color: '#ea580c', iconSvg: (h) => svgTug('#ea580c', h) },
   sailing: { label: 'Sailing', color: '#7c3aed', iconSvg: (h) => svgSailing('#7c3aed', h) },
@@ -261,6 +267,22 @@ function getShipCategory(shipType: number | null, sog: number | null): ShipCateg
   return (sog ?? 0) > 0.5 ? CATEGORIES.default : CATEGORIES.atRest
 }
 
+/** Resolve the category KEY for a vessel (used for filtering). */
+export function getShipCategoryKey(shipType: number | null, sog: number | null): ShipCategoryKey {
+  if (shipType == null) return (sog ?? 0) > 0.5 ? 'default' : 'atRest'
+  if (shipType === 30) return 'fishing'
+  if (shipType >= 31 && shipType <= 33) return 'towing'
+  if (shipType === 36) return 'sailing'
+  if (shipType === 37) return 'pleasure'
+  if (shipType >= 40 && shipType <= 49) return 'highSpeed'
+  if (shipType >= 50 && shipType <= 55) return 'service'
+  if (shipType >= 60 && shipType <= 69) return 'passenger'
+  if (shipType >= 70 && shipType <= 79) return 'cargo'
+  if (shipType >= 80 && shipType <= 89) return 'tanker'
+  if (shipType === 35) return 'military'
+  return (sog ?? 0) > 0.5 ? 'default' : 'atRest'
+}
+
 function shipTypeLabel(shipType: number | null): string {
   if (shipType == null) return 'Unknown Type'
   return getShipCategory(shipType, 1).label
@@ -275,17 +297,31 @@ function buildCalloutElement(
   vectorEnabled: boolean,
   onToggleVector: (id: string) => void,
 ): HTMLElement {
+  // Detect dark mode at render time
+  const isDark = import.meta.client && document.documentElement.classList.contains('dark')
+  const bg = isDark ? '#1e1e1e' : 'white'
+  const textPrimary = isDark ? '#e5e5e5' : '#1a1a1a'
+  const textSecondary = isDark ? '#999' : '#aaa'
+  const textTertiary = isDark ? '#666' : '#bbb'
+  const textDim = isDark ? '#555' : '#ccc'
+  const borderColor = isDark ? '#333' : '#f0f0f0'
+  const destBg = isDark ? '#052e16' : '#f0fdf4'
+  const destColor = isDark ? '#4ade80' : '#15803d'
+  const vectorBtnBgOff = isDark ? '#2a2a2a' : '#f5f5f5'
+  const mtBg = isDark ? '#0c2d48' : '#f0f7ff'
+  const mtColor = isDark ? '#38bdf8' : '#0284c7'
+
   const el = document.createElement('div')
   el.style.cssText = `
     width: 260px;
-    background: white;
+    background: ${bg};
     border-radius: 12px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.15), 0 1px 4px rgba(0,0,0,0.08);
+    box-shadow: 0 4px 24px rgba(0,0,0,${isDark ? '0.5' : '0.15'}), 0 1px 4px rgba(0,0,0,${isDark ? '0.3' : '0.08'});
     padding: 12px 14px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-size: 12px;
     line-height: 1.4;
-    color: #1a1a1a;
+    color: ${textPrimary};
   `
 
   let distLabel = '—'
@@ -305,7 +341,7 @@ function buildCalloutElement(
   const nameFontSize = name.length <= 12 ? '16px' : name.length <= 20 ? '14px' : '13px'
 
   const destRow = v.destination
-    ? `<div style="display:flex;align-items:center;gap:4px;margin-top:4px;padding:4px 6px;background:#f0fdf4;border-radius:6px;font-size:10px;color:#15803d;">
+    ? `<div style="display:flex;align-items:center;gap:4px;margin-top:4px;padding:4px 6px;background:${destBg};border-radius:6px;font-size:10px;color:${destColor};">
         <span style="font-weight:600;">→</span> ${v.destination}
       </div>`
     : ''
@@ -316,60 +352,60 @@ function buildCalloutElement(
   if (v.draft != null) dimParts.push(`${v.draft}m draft`)
   const dimRow =
     dimParts.length > 0
-      ? `<div style="font-size:10px;color:#aaa;margin-top:2px;">${dimParts.join(' × ')}</div>`
+      ? `<div style="font-size:10px;color:${textSecondary};margin-top:2px;">${dimParts.join(' × ')}</div>`
       : ''
 
   const callSignRow = v.callSign
-    ? `<span style="color:#ccc;">·</span><span style="font-size:10px;color:#aaa;">${v.callSign}</span>`
+    ? `<span style="color:${textDim};">·</span><span style="font-size:10px;color:${textSecondary};">${v.callSign}</span>`
     : ''
 
   // Vector toggle button (per-vessel)
-  const vectorBtnColor = vectorEnabled ? '#0891b2' : '#ccc'
-  const vectorBtnBg = vectorEnabled ? '#0891b215' : '#f5f5f5'
+  const vectorBtnColor = vectorEnabled ? '#0891b2' : (isDark ? '#666' : '#ccc')
+  const vectorBtnBg = vectorEnabled ? '#0891b215' : vectorBtnBgOff
 
   el.innerHTML = `
-    <div style="font-weight:700; font-size:${nameFontSize}; color:#111; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.3;">${name}</div>
+    <div style="font-weight:700; font-size:${nameFontSize}; color:${textPrimary}; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.3;">${name}</div>
     <div style="display:flex; align-items:center; gap:5px; margin-top:3px; flex-wrap:wrap;">
       <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;background:${cat.color}12;color:${cat.color};font-size:9px;font-weight:700;letter-spacing:0.03em;">
         <span style="width:6px;height:6px;border-radius:50%;background:${cat.color};"></span>
         ${shipTypeLabel(v.shipType)}
       </span>
       <span style="font-size:10px;color:${statusColor};font-weight:600;">${statusText}</span>
-      ${v.mmsi ? `<span style="color:#ddd;">·</span><span style="font-size:10px;color:#bbb;">MMSI ${v.mmsi}</span>` : ''}
+      ${v.mmsi ? `<span style="color:${textDim};">·</span><span style="font-size:10px;color:${textTertiary};">MMSI ${v.mmsi}</span>` : ''}
       ${callSignRow}
     </div>
     ${destRow}
     ${dimRow}
-    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px 0; border-top:1px solid #f0f0f0; padding-top:8px; margin-top:8px;">
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px 0; border-top:1px solid ${borderColor}; padding-top:8px; margin-top:8px;">
       <div style="text-align:center;">
-        <div style="font-size:9px; font-weight:700; color:#aaa; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:2px;">SOG</div>
+        <div style="font-size:9px; font-weight:700; color:${textSecondary}; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:2px;">SOG</div>
         <div style="font-weight:600; font-size:13px;">${fmtKts(v.sog)}</div>
       </div>
       <div style="text-align:center;">
-        <div style="font-size:9px; font-weight:700; color:#aaa; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:2px;">COG</div>
-        <div style="font-weight:600; font-size:13px;">${fmtDeg(v.cog)}${v.cog != null ? ` <span style="font-size:10px;color:#999;font-weight:400;">${cardinalLabel(v.cog)}</span>` : ''}</div>
+        <div style="font-size:9px; font-weight:700; color:${textSecondary}; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:2px;">COG</div>
+        <div style="font-weight:600; font-size:13px;">${fmtDeg(v.cog)}${v.cog != null ? ` <span style="font-size:10px;color:${textSecondary};font-weight:400;">${cardinalLabel(v.cog)}</span>` : ''}</div>
       </div>
       <div style="text-align:center;">
-        <div style="font-size:9px; font-weight:700; color:#aaa; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:2px;">HDG</div>
+        <div style="font-size:9px; font-weight:700; color:${textSecondary}; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:2px;">HDG</div>
         <div style="font-weight:600; font-size:13px;">${fmtDeg(v.heading)}</div>
       </div>
     </div>
-    <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px 0; border-top:1px solid #f0f0f0; padding-top:8px; margin-top:8px;">
+    <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px 0; border-top:1px solid ${borderColor}; padding-top:8px; margin-top:8px;">
       <div style="text-align:center;">
-        <div style="font-size:9px; font-weight:700; color:#aaa; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:2px;">DIST</div>
+        <div style="font-size:9px; font-weight:700; color:${textSecondary}; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:2px;">DIST</div>
         <div style="font-weight:600; font-size:13px;">${distLabel}</div>
       </div>
       <div style="text-align:center;">
-        <div style="font-size:9px; font-weight:700; color:#aaa; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:2px;">BRG</div>
+        <div style="font-size:9px; font-weight:700; color:${textSecondary}; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:2px;">BRG</div>
         <div style="font-weight:600; font-size:13px;">${brgLabel}</div>
       </div>
     </div>
-    ${v.lat != null ? `<div style="text-align:center;font-size:10px;color:#bbb;margin-top:6px;font-variant-numeric:tabular-nums;">${v.lat.toFixed(5)}°, ${v.lng!.toFixed(5)}°</div>` : ''}
-    <div style="display:flex;gap:6px;margin-top:8px;border-top:1px solid #f0f0f0;padding-top:8px;">
+    ${v.lat != null ? `<div style="text-align:center;font-size:10px;color:${textTertiary};margin-top:6px;font-variant-numeric:tabular-nums;">${v.lat.toFixed(5)}°, ${v.lng!.toFixed(5)}°</div>` : ''}
+    <div style="display:flex;gap:6px;margin-top:8px;border-top:1px solid ${borderColor};padding-top:8px;">
       <div id="vector-toggle-${v.id}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px;padding:5px 0;border-radius:8px;background:${vectorBtnBg};color:${vectorBtnColor};font-size:10px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;">
         <span style="font-size:12px;">⟶</span> ${PREDICTION_MINUTES}min Vector
       </div>
-      ${v.mmsi ? `<div id="mt-link-${v.id}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px;padding:5px 0;border-radius:8px;background:#f0f7ff;color:#0284c7;font-size:10px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;">MarineTraffic <span style="font-size:11px;">↗</span></div>` : ''}
+      ${v.mmsi ? `<div id="mt-link-${v.id}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px;padding:5px 0;border-radius:8px;background:${mtBg};color:${mtColor};font-size:10px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;">MarineTraffic <span style="font-size:11px;">↗</span></div>` : ''}
     </div>
   `
 
@@ -419,6 +455,7 @@ interface MapOverlayPrefs {
   vectors: boolean
   labels: boolean
   vesselVectors: string[] // per-vessel vector toggle IDs
+  typeFilters: ShipCategoryKey[] // active vessel type filters (empty = show all)
 }
 
 const DEFAULT_PREFS: MapOverlayPrefs = {
@@ -426,6 +463,7 @@ const DEFAULT_PREFS: MapOverlayPrefs = {
   vectors: false,
   labels: true,
   vesselVectors: [],
+  typeFilters: [],
 }
 
 function loadMapPrefs(): MapOverlayPrefs {
@@ -462,6 +500,54 @@ export function useAISOverlay() {
   const showVectors = ref(false)
   const showLabels = ref(true)
 
+  // ── Vessel Type Filters ──
+  const activeTypeFilters = reactive(new Set<ShipCategoryKey>())
+
+  /** Whether a vessel passes the active type filter. Empty filter = all pass. */
+  function passesTypeFilter(v: AISVessel): boolean {
+    if (activeTypeFilters.size === 0) return true
+    const key = getShipCategoryKey(v.shipType, v.sog)
+    return activeTypeFilters.has(key)
+  }
+
+  function toggleTypeFilter(key: ShipCategoryKey) {
+    if (activeTypeFilters.has(key)) activeTypeFilters.delete(key)
+    else activeTypeFilters.add(key)
+    _saveCurrentPrefs()
+    // Force full rebuild when filters change
+    const map = getMap()
+    if (map) {
+      for (const ann of aisAnnotations.values()) map.removeAnnotation(ann)
+      aisAnnotations.clear()
+      lastRendered.clear()
+    }
+    refreshAIS()
+  }
+
+  function clearTypeFilters() {
+    activeTypeFilters.clear()
+    _saveCurrentPrefs()
+    const map = getMap()
+    if (map) {
+      for (const ann of aisAnnotations.values()) map.removeAnnotation(ann)
+      aisAnnotations.clear()
+      lastRendered.clear()
+    }
+    refreshAIS()
+  }
+
+  /** Per-category badge counts for the filter panel. */
+  const typeCounts = computed(() => {
+    if (!store.showOtherVessels) return {} as Record<ShipCategoryKey, number>
+    const counts: Partial<Record<ShipCategoryKey, number>> = {}
+    for (const v of store.otherVesselsList) {
+      if (v.lat == null) continue
+      const key = getShipCategoryKey(v.shipType, v.sog)
+      counts[key] = (counts[key] ?? 0) + 1
+    }
+    return counts as Record<ShipCategoryKey, number>
+  })
+
   // Restore saved preferences AFTER hydration to avoid SSR mismatch
   // (server renders buttons with defaults; client must match until mounted)
   onMounted(() => {
@@ -470,14 +556,75 @@ export function useAISOverlay() {
     showVectors.value = saved.vectors
     showLabels.value = saved.labels
     for (const id of saved.vesselVectors) perVesselVectors.add(id)
+    for (const f of saved.typeFilters) activeTypeFilters.add(f)
   })
 
   // Per-vessel vector overrides: vessels in this set always show vectors
   const perVesselVectors = reactive(new Set<string>())
 
   const aisCount = computed(() =>
-    store.showOtherVessels ? store.otherVesselsList.filter((v) => v.lat != null).length : 0,
+    store.showOtherVessels
+      ? store.otherVesselsList.filter((v) => v.lat != null && passesTypeFilter(v)).length
+      : 0,
   )
+
+  // ── Vessel Trails (Feature 3) ──
+  const showTrails = ref(false)
+  const vesselTrailHistory = new Map<string, Array<{ lat: number; lng: number; ts: number }>>()
+  const trailOverlays = new Map<string, unknown>()
+  const TRAIL_MAX_POINTS = 60 // 30 min at 30s sample rate
+
+  // ── CPA / TCPA (Feature 2) ──
+  const CPA_WARNING_NM = 0.5
+  const CPA_WARNING_MIN = 15
+  const dangerousVesselIds = reactive(new Set<string>())
+  let cpaTimer: ReturnType<typeof setInterval> | null = null
+
+  /** Compute CPA/TCPA between self and an AIS target. */
+  function computeCPA(v: AISVessel): { cpa: number; tcpa: number } | null {
+    if (lat.value == null || lng.value == null || v.lat == null || v.lng == null) return null
+    const targetSog = v.sog ?? 0
+    const targetCog = v.cog ?? v.heading
+    if (targetSog < 0.3 || targetCog == null) return null
+
+    // Convert to cartesian velocities (NM/min)
+    const tCogRad = (targetCog * Math.PI) / 180
+    const tSpeedNMperMin = targetSog / 60
+
+    // Relative position in NM (approximate flat earth at this scale)
+    const dLat = (v.lat - lat.value) * 60 // 1 deg lat ≈ 60 NM
+    const dLng = (v.lng - lng.value) * 60 * Math.cos((lat.value * Math.PI) / 180)
+
+    // Relative velocity components
+    const dvx = tSpeedNMperMin * Math.sin(tCogRad) - 0 // self stationary
+    const dvy = tSpeedNMperMin * Math.cos(tCogRad) - 0
+
+    const vv = dvx * dvx + dvy * dvy
+    if (vv < 1e-10) return null // no relative motion
+
+    const pv = dLng * dvx + dLat * dvy
+    const tcpaMin = -pv / vv
+    if (tcpaMin < 0) return null // already diverging
+
+    const cpaNM = Math.sqrt(
+      (dLng + dvx * tcpaMin) ** 2 + (dLat + dvy * tcpaMin) ** 2,
+    )
+
+    return { cpa: cpaNM, tcpa: tcpaMin }
+  }
+
+  function refreshCPA() {
+    dangerousVesselIds.clear()
+    if (!store.showOtherVessels || lat.value == null || lng.value == null) return
+
+    for (const v of store.otherVesselsList) {
+      if (!passesTypeFilter(v)) continue
+      const result = computeCPA(v)
+      if (result && result.cpa < CPA_WARNING_NM && result.tcpa < CPA_WARNING_MIN) {
+        dangerousVesselIds.add(v.id)
+      }
+    }
+  }
 
   // ── Map Object Storage ──
   const aisAnnotations = new Map<string, MapKitAnnotationRef>()
@@ -556,6 +703,21 @@ export function useAISOverlay() {
     map.setCenterAnimated(new mapkit.Coordinate(latitude, longitude), true)
   }
 
+  /** Pan the map to a specific AIS vessel and pin its callout. */
+  function centerOnVessel(vesselId: string) {
+    const map = getMap()
+    if (!map) return
+    const v = store.otherVesselsList.find((x) => x.id === vesselId)
+    if (!v || v.lat == null || v.lng == null) return
+    centerOnCoord(map, v.lat, v.lng)
+    const ann = aisAnnotations.get(vesselId)
+    if (ann) {
+      pinnedVesselId = vesselId
+      clearAISHoverHideTimer()
+      map.selectedAnnotation = ann
+    }
+  }
+
   // ── Per-Vessel Vector Toggle ──
 
   function _saveCurrentPrefs() {
@@ -564,6 +726,7 @@ export function useAISOverlay() {
       vectors: showVectors.value,
       labels: showLabels.value,
       vesselVectors: [...perVesselVectors],
+      typeFilters: [...activeTypeFilters],
     })
   }
 
@@ -741,7 +904,9 @@ export function useAISOverlay() {
       return
     }
 
-    const currentVessels = store.otherVesselsList.filter((v) => v.lat != null && v.lng != null)
+    const currentVessels = store.otherVesselsList.filter(
+      (v) => v.lat != null && v.lng != null && passesTypeFilter(v),
+    )
     const currentIds = new Set(currentVessels.map((v) => v.id))
 
     // Remove stale
@@ -787,6 +952,55 @@ export function useAISOverlay() {
     if (anyMoved) {
       refreshVectors()
     }
+
+    // Record trail points for vessels that moved
+    if (showTrails.value) {
+      for (const v of currentVessels) {
+        if (v.lat == null || v.lng == null) continue
+        let history = vesselTrailHistory.get(v.id)
+        if (!history) {
+          history = []
+          vesselTrailHistory.set(v.id, history)
+        }
+        const last = history.at(-1)
+        // Only add if moved significantly or first point
+        if (!last || haversineMeters(last.lat, last.lng, v.lat, v.lng) > MOVEMENT_THRESHOLD_M) {
+          history.push({ lat: v.lat, lng: v.lng, ts: Date.now() })
+          if (history.length > TRAIL_MAX_POINTS) history.splice(0, history.length - TRAIL_MAX_POINTS)
+        }
+      }
+      refreshTrails()
+    }
+  }
+
+  // ── Trail Rendering ──
+
+  function refreshTrails() {
+    const map = getMap()
+    if (!map) return
+    for (const [, overlay] of trailOverlays) map.removeOverlay(overlay)
+    trailOverlays.clear()
+
+    if (!showTrails.value || !store.showOtherVessels) return
+
+    for (const [id, history] of vesselTrailHistory) {
+      if (history.length < 2) continue
+      if (!passesTypeFilter(store.otherVesselsList.find((v) => v.id === id)!)) continue
+      const v = store.otherVesselsList.find((x) => x.id === id)
+      if (!v) continue
+
+      const cat = getShipCategory(v.shipType, v.sog)
+      const coords = history.map((p) => new mapkit.Coordinate(p.lat, p.lng))
+      const overlay = new mapkit.PolylineOverlay(coords, {
+        style: new mapkit.Style({
+          lineWidth: 1.5,
+          strokeColor: cat.color,
+          strokeOpacity: 0.3,
+        }),
+      })
+      map.addOverlay(overlay)
+      trailOverlays.set(id, overlay)
+    }
   }
 
   // ── Lifecycle ──
@@ -801,6 +1015,9 @@ export function useAISOverlay() {
     refreshAIS()
     bindSelectionEvents()
     refreshTimer = setInterval(refreshAIS, AIS_CHECK_INTERVAL_MS)
+    // CPA refresh every 5s
+    cpaTimer = setInterval(refreshCPA, 5_000)
+    refreshCPA()
   }
 
   function stop() {
@@ -808,15 +1025,22 @@ export function useAISOverlay() {
       clearInterval(refreshTimer)
       refreshTimer = null
     }
+    if (cpaTimer) {
+      clearInterval(cpaTimer)
+      cpaTimer = null
+    }
     unbindSelectionEvents()
     const map = getMap()
     if (map) {
       for (const ann of aisAnnotations.values()) map.removeAnnotation(ann)
       for (const overlay of vectorOverlays.values()) map.removeOverlay(overlay)
+      for (const overlay of trailOverlays.values()) map.removeOverlay(overlay)
     }
     aisAnnotations.clear()
     vectorOverlays.clear()
+    trailOverlays.clear()
     lastRendered.clear()
+    dangerousVesselIds.clear()
   }
 
   // React to toggle changes + persist to localStorage
@@ -842,11 +1066,30 @@ export function useAISOverlay() {
     refreshAIS()
   })
 
+  // React to trail toggle
+  watch(showTrails, () => {
+    if (!showTrails.value) {
+      vesselTrailHistory.clear()
+      const map = getMap()
+      if (map) {
+        for (const overlay of trailOverlays.values()) map.removeOverlay(overlay)
+      }
+      trailOverlays.clear()
+    }
+  })
+
   return {
     showOtherVessels,
     showVectors,
     showLabels,
+    showTrails,
     aisCount,
+    activeTypeFilters,
+    typeCounts,
+    dangerousVesselIds,
+    toggleTypeFilter,
+    clearTypeFilters,
+    centerOnVessel,
     start,
     stop,
   }
