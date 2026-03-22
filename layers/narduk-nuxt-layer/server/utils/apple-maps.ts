@@ -305,8 +305,7 @@ function haversineNm(lat1: number, lon1: number, lat2: number, lon2: number) {
   const dLat = (lat2 - lat1) * toR
   const dLon = (lon2 - lon1) * toR
   const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * toR) * Math.cos(lat2 * toR) * Math.sin(dLon / 2) ** 2
+    Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * toR) * Math.cos(lat2 * toR) * Math.sin(dLon / 2) ** 2
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)))
 }
 

@@ -74,7 +74,9 @@ const TARGET_TRAFFIC_SAMPLES_PER_VESSEL = Number(
 const TARGET_TRAFFIC_TOTAL_SAMPLES = Number(
   process.env.PASSAGE_EXPORT_TARGET_TRAFFIC_TOTAL_SAMPLES || 150_000,
 )
-const TRAFFIC_CONTEXT_BATCH_SIZE = Number(process.env.PASSAGE_EXPORT_TRAFFIC_CONTEXT_BATCH_SIZE || 60)
+const TRAFFIC_CONTEXT_BATCH_SIZE = Number(
+  process.env.PASSAGE_EXPORT_TRAFFIC_CONTEXT_BATCH_SIZE || 60,
+)
 const TRAFFIC_METADATA_LOOKBACK_HOURS = Number(
   process.env.PASSAGE_EXPORT_TRAFFIC_METADATA_LOOKBACK_HOURS || 24 * 14,
 )
@@ -524,7 +526,10 @@ function exportTrafficBundle(startIso, stopIso, ownSamples, windowEvery) {
   const aisClassMap = fetchTrafficMetadataMap(startIso, stopIso, 'sensors.ais.class')
   const maxSamplesPerVessel = Math.max(
     120,
-    Math.min(TARGET_TRAFFIC_SAMPLES_PER_VESSEL, Math.floor(TARGET_TRAFFIC_TOTAL_SAMPLES / contexts.length)),
+    Math.min(
+      TARGET_TRAFFIC_SAMPLES_PER_VESSEL,
+      Math.floor(TARGET_TRAFFIC_TOTAL_SAMPLES / contexts.length),
+    ),
   )
 
   const vessels = []
@@ -662,7 +667,9 @@ function fetchTrafficScalarMap(startIso, stopIso, every, contexts, measurement) 
 }
 
 function fetchTrafficNameMap(startIso, stopIso) {
-  const raw = runInflux(fluxTrafficNames(addHoursIso(startIso, -TRAFFIC_METADATA_LOOKBACK_HOURS), stopIso))
+  const raw = runInflux(
+    fluxTrafficNames(addHoursIso(startIso, -TRAFFIC_METADATA_LOOKBACK_HOURS), stopIso),
+  )
   const rows = parseAnnotatedCsv(raw)
   const out = new Map()
   for (const row of rows) {
@@ -675,7 +682,11 @@ function fetchTrafficNameMap(startIso, stopIso) {
 
 function fetchTrafficMetadataMap(startIso, stopIso, measurement) {
   const raw = runInflux(
-    fluxTrafficMetadata(addHoursIso(startIso, -TRAFFIC_METADATA_LOOKBACK_HOURS), stopIso, measurement),
+    fluxTrafficMetadata(
+      addHoursIso(startIso, -TRAFFIC_METADATA_LOOKBACK_HOURS),
+      stopIso,
+      measurement,
+    ),
   )
   const rows = parseAnnotatedCsv(raw)
   const out = new Map()
