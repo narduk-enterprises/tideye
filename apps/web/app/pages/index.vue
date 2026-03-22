@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const { appName } = usePageSeo(
   'Marine Telemetry Platform',
-  `TideEye provides real-time vessel monitoring, marine telemetry, and passage planning for your boat.`,
+  'Real-time vessel monitoring, marine telemetry, and passage planning for your boat.',
 )
 
 const features = [
