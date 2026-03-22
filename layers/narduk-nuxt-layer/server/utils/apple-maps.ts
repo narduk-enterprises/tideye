@@ -7,6 +7,8 @@
  * Pattern extracted from hoods/server/api/neighborhoods.get.ts.
  */
 
+import { grokChat } from './xai'
+
 export interface AppleMapsCreds {
   mapkitServerApiKey: string
   appleTeamId: string
@@ -18,6 +20,38 @@ let cachedDeveloperToken = ''
 let cachedDeveloperTokenExpiresAt = 0
 
 const DEVELOPER_TOKEN_REFRESH_WINDOW_MS = 60_000
+const CONTEXTUAL_SEARCH_QUERIES = [
+  'marina',
+  'harbor',
+  'harbour',
+  'port',
+  'anchorage',
+  'bay',
+  'inlet',
+  'cay',
+  'island',
+  'settlement',
+  'town',
+  'village',
+  'sound',
+  'channel',
+  'river',
+  'creek',
+]
+const GENERIC_CONTEXTUAL_LABELS = new Set([
+  'the bahamas',
+  'bahamas',
+  'united states',
+  'united states of america',
+  'usa',
+  'north atlantic ocean',
+  'atlantic ocean',
+  'caribbean sea',
+  'gulf of america',
+  'gulf of mexico',
+])
+const XAI_CONTEXT_MODEL = process.env.XAI_CONTEXT_MODEL || 'grok-4-0709'
+const contextualAiCache = new Map<string, string | null>()
 
 function normalizePrivateKey(secretKey: string) {
   return secretKey.includes('\\n') ? secretKey.replaceAll('\\n', '\n') : secretKey
@@ -268,6 +302,34 @@ function normalizeContextualLabel(value: unknown) {
   return cleaned
 }
 
+function normalizeContextualKey(value: unknown) {
+  if (typeof value !== 'string') return ''
+  return value.trim().replace(/\s+/g, ' ').toLowerCase()
+}
+
+function isSpecificMarinePlaceLabel(value: string) {
+  return /\b(?:marina|harbor|harbour|port|anchorage|bay|inlet|cay|island|sound|channel|river|creek|point|shoal|harbour)\b/i.test(
+    value,
+  )
+}
+
+function isGenericContextualLabel(value: string, result: AppleMapsSearchResult | null) {
+  const key = normalizeContextualKey(value)
+  if (!key) return true
+  if (GENERIC_CONTEXTUAL_LABELS.has(key)) return true
+  if (isSpecificMarinePlaceLabel(value)) return false
+
+  const structured = result?.structuredAddress
+  const genericMatch = [
+    result?.country,
+    structured?.administrativeArea,
+    structured?.locality,
+    structured?.subLocality,
+  ].some((candidate) => normalizeContextualKey(candidate) === key)
+
+  return genericMatch
+}
+
 function pickContextualLabelFromResult(result: AppleMapsSearchResult | null) {
   if (!result) return null
 
@@ -282,7 +344,7 @@ function pickContextualLabelFromResult(result: AppleMapsSearchResult | null) {
 
   for (const candidate of candidates) {
     const normalized = normalizeContextualLabel(candidate)
-    if (normalized) return normalized
+    if (normalized && !isGenericContextualLabel(normalized, result)) return normalized
   }
 
   return null
@@ -320,12 +382,11 @@ function pickNearbyContextualResult(
     const label = normalizeContextualLabel(result.name || result.displayName)
     const resLat = Number(result.coordinate?.latitude)
     const resLon = Number(result.coordinate?.longitude)
-    if (!label || !Number.isFinite(resLat) || !Number.isFinite(resLon)) continue
+    if (!label || isGenericContextualLabel(label, result)) continue
+    if (!Number.isFinite(resLat) || !Number.isFinite(resLon)) continue
 
     const distanceNm = haversineNm(lat, lng, resLat, resLon)
-    const marineBoost = /\b(?:marina|harbor|harbour|port|anchorage|bay|inlet|key)\b/i.test(label)
-      ? 4
-      : 0
+    const marineBoost = isSpecificMarinePlaceLabel(label) ? 4 : 0
     const score = marineBoost - distanceNm
     if (score > bestScore) {
       bestScore = score
@@ -333,6 +394,135 @@ function pickNearbyContextualResult(
     }
   }
   return best
+}
+
+function summarizeAppleResult(result: AppleMapsSearchResult | null) {
+  if (!result) return null
+  const structured = result.structuredAddress
+  const bits = [
+    result.name || result.displayName || null,
+    structured?.areasOfInterest?.[0] || null,
+    structured?.subLocality || null,
+    structured?.locality || null,
+    structured?.administrativeArea || null,
+    result.country || null,
+  ].filter((value): value is string => Boolean(value && value.trim()))
+
+  return bits.length ? bits.join(' | ') : null
+}
+
+function collectNearbyContextualCandidates(
+  results: AppleMapsSearchResult[],
+  lat: number,
+  lng: number,
+) {
+  const seen = new Set<string>()
+  const candidates: Array<{ label: string; distanceNm: number; poiCategory: string | null }> = []
+
+  for (const result of results) {
+    const label = normalizeContextualLabel(result.name || result.displayName)
+    const resLat = Number(result.coordinate?.latitude)
+    const resLon = Number(result.coordinate?.longitude)
+    if (!label || isGenericContextualLabel(label, result)) continue
+    if (!Number.isFinite(resLat) || !Number.isFinite(resLon)) continue
+
+    const key = normalizeContextualKey(label)
+    if (seen.has(key)) continue
+    seen.add(key)
+
+    candidates.push({
+      label,
+      distanceNm: haversineNm(lat, lng, resLat, resLon),
+      poiCategory: typeof result.poiCategory === 'string' ? result.poiCategory : null,
+    })
+  }
+
+  candidates.sort((left, right) => left.distanceNm - right.distanceNm)
+  return candidates.slice(0, 12)
+}
+
+function parseXaiContextualLabel(content: string) {
+  const trimmed = content.trim()
+  if (!trimmed) return null
+
+  const match = trimmed.match(/\{[\s\S]*\}/)
+  const candidatePayload = match ? match[0] : trimmed
+
+  try {
+    const parsed = JSON.parse(candidatePayload) as { label?: string | null }
+    const normalized = normalizeContextualLabel(parsed.label)
+    return normalized && !GENERIC_CONTEXTUAL_LABELS.has(normalizeContextualKey(normalized))
+      ? normalized
+      : null
+  } catch {
+    const normalized = normalizeContextualLabel(trimmed.replace(/^label\s*:\s*/i, '').trim())
+    return normalized && !GENERIC_CONTEXTUAL_LABELS.has(normalizeContextualKey(normalized))
+      ? normalized
+      : null
+  }
+}
+
+async function disambiguateContextualLabelWithXai(
+  lat: number,
+  lng: number,
+  reverse: AppleMapsSearchResult | null,
+  nearbyResults: AppleMapsSearchResult[],
+) {
+  const apiKey = process.env.XAI_API_KEY?.trim()
+  if (!apiKey) return null
+
+  const cacheKey = `${lat.toFixed(5)},${lng.toFixed(5)}`
+  if (contextualAiCache.has(cacheKey)) {
+    return contextualAiCache.get(cacheKey) ?? null
+  }
+
+  const reverseSummary = summarizeAppleResult(reverse)
+  const nearbyCandidates = collectNearbyContextualCandidates(nearbyResults, lat, lng)
+  if (!nearbyCandidates.length) {
+    contextualAiCache.set(cacheKey, null)
+    return null
+  }
+
+  try {
+    const content = await grokChat(
+      apiKey,
+      [
+        {
+          role: 'system',
+          content:
+            'You label sailing legs for cruisers. Return JSON only in the form {"label": string|null}. If the coordinate is offshore, choose the nearest familiar local place name sailors would actually use to describe that area. Prefer well-known cays, islands, anchorages, harbors, bays, marinas, settlements, or towns over obscure cuts, channels, or chart-only micro-features. Only use a cut or channel name when it is clearly the common cruising reference. Never return a country, state, address, or broad water body. Only return {"label": null} if no nearby specific place is available.',
+        },
+        {
+          role: 'user',
+          content: [
+            `Coordinate: ${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+            reverseSummary ? `Apple reverse geocode: ${reverseSummary}` : null,
+            nearbyCandidates.length
+              ? `Nearby Apple candidates:\n${nearbyCandidates
+                  .map((candidate) => {
+                    const suffix = candidate.poiCategory
+                      ? ` (${candidate.poiCategory}, ${candidate.distanceNm.toFixed(1)} nm)`
+                      : ` (${candidate.distanceNm.toFixed(1)} nm)`
+                    return `- ${candidate.label}${suffix}`
+                  })
+                  .join('\n')}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join('\n\n'),
+        },
+      ],
+      XAI_CONTEXT_MODEL,
+    )
+
+    const label = parseXaiContextualLabel(content)
+    contextualAiCache.set(cacheKey, label)
+    return label
+  } catch (error) {
+    console.warn('[AppleMaps] xAI contextual label fallback failed', error)
+    contextualAiCache.set(cacheKey, null)
+    return null
+  }
 }
 
 export async function resolveContextualPlaceLabel(
@@ -345,7 +535,8 @@ export async function resolveContextualPlaceLabel(
   if (direct) return direct
 
   const region = smallSearchRegion(lat, lng, 10)
-  for (const query of ['marina', 'harbor', 'harbour', 'port', 'anchorage', 'bay', 'inlet']) {
+  const nearbyCandidates: AppleMapsSearchResult[] = []
+  for (const query of CONTEXTUAL_SEARCH_QUERIES) {
     const nearby = await searchPlaces(accessToken, {
       query,
       searchLocation: { lat, lng },
@@ -353,9 +544,25 @@ export async function resolveContextualPlaceLabel(
       limit: 8,
       lang: 'en-US',
     })
+    nearbyCandidates.push(...nearby)
     const best = pickNearbyContextualResult(nearby, lat, lng)
     if (best) return best
   }
+
+  const broaderRegion = smallSearchRegion(lat, lng, 24)
+  for (const query of CONTEXTUAL_SEARCH_QUERIES) {
+    const nearby = await searchPlaces(accessToken, {
+      query,
+      searchLocation: { lat, lng },
+      searchRegion: broaderRegion,
+      limit: 8,
+      lang: 'en-US',
+    })
+    nearbyCandidates.push(...nearby)
+  }
+
+  const aiLabel = await disambiguateContextualLabelWithXai(lat, lng, reverse, nearbyCandidates)
+  if (aiLabel) return aiLabel
 
   return null
 }

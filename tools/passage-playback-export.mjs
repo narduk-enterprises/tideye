@@ -80,6 +80,11 @@ const TRAFFIC_CONTEXT_BATCH_SIZE = Number(
 const TRAFFIC_METADATA_LOOKBACK_HOURS = Number(
   process.env.PASSAGE_EXPORT_TRAFFIC_METADATA_LOOKBACK_HOURS || 24 * 14,
 )
+const LABEL_NEIGHBOR_MAX_NM = Number(process.env.PASSAGE_EXPORT_LABEL_NEIGHBOR_MAX_NM || 40)
+const LABEL_CLUSTER_RADIUS_NM = Number(process.env.PASSAGE_EXPORT_LABEL_CLUSTER_RADIUS_NM || 0.75)
+const LABEL_STRICT_NEIGHBOR_MAX_NM = Number(
+  process.env.PASSAGE_EXPORT_LABEL_STRICT_NEIGHBOR_MAX_NM || 8,
+)
 
 const SELF_POSITION_SOURCE = process.env.PASSAGE_EXPORT_SELF_POSITION_SOURCE || 'ydg-nmea-2000.2'
 const SELF_NAV_SOURCE = process.env.PASSAGE_EXPORT_SELF_NAV_SOURCE || SELF_POSITION_SOURCE
@@ -99,7 +104,39 @@ const TRAFFIC_POSITION_SOURCE =
 const TRAFFIC_NAME_SOURCE = process.env.PASSAGE_EXPORT_TRAFFIC_NAME_SOURCE || 'ydg-nmea-2000.2'
 
 const APPLE_LANG = 'en-US'
-const APPLE_CONTEXT_QUERIES = ['marina', 'harbor', 'harbour', 'port', 'anchorage', 'bay', 'inlet']
+const APPLE_CONTEXT_QUERIES = [
+  'marina',
+  'harbor',
+  'harbour',
+  'port',
+  'anchorage',
+  'bay',
+  'inlet',
+  'cay',
+  'island',
+  'settlement',
+  'town',
+  'village',
+  'sound',
+  'channel',
+  'river',
+  'creek',
+]
+const GENERIC_CONTEXTUAL_LABELS = new Set([
+  'the bahamas',
+  'bahamas',
+  'united states',
+  'united states of america',
+  'usa',
+  'north atlantic ocean',
+  'atlantic ocean',
+  'caribbean sea',
+  'gulf of america',
+  'gulf of mexico',
+])
+const XAI_CONTEXT_MODEL = process.env.XAI_CONTEXT_MODEL || 'grok-4-0709'
+const XAI_API_KEY = (process.env.XAI_API_KEY || '').trim()
+const CONTEXTUAL_AI_CACHE = new Map()
 
 const ISO_PREFIX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/
 
@@ -160,6 +197,8 @@ async function main() {
     })
   }
 
+  await backfillEndpointLabels(manifestRows, appleResolver)
+
   const manifest = {
     v: 1,
     generatedAt: new Date().toISOString(),
@@ -189,6 +228,281 @@ async function main() {
   process.stderr.write(`Wrote ${manifestRows.length} passage bundle(s) to ${OUTPUT_DIR}\n`)
 }
 
+async function backfillEndpointLabels(manifestRows, appleResolver) {
+  const clusters = buildEndpointClusters(manifestRows)
+  const knownPoints = clusters
+    .filter((cluster) => cluster.label)
+    .map((cluster) => ({
+      label: cluster.label,
+      lat: cluster.lat,
+      lon: cluster.lon,
+    }))
+
+  const accessToken = appleResolver?.accessToken || null
+  for (const cluster of clusters) {
+    if (cluster.label) continue
+
+    const contextualLabel = accessToken
+      ? resolveClusterLabelFromRouteContext(accessToken, cluster, clusters, manifestRows)
+      : null
+    const strictFallback =
+      contextualLabel ||
+      nearestKnownEndpointLabel(
+        cluster.lat,
+        cluster.lon,
+        knownPoints,
+        Array.from(cluster.avoidLabels),
+        LABEL_STRICT_NEIGHBOR_MAX_NM,
+      )
+
+    if (!strictFallback) continue
+
+    cluster.label = strictFallback
+    knownPoints.push({
+      label: strictFallback,
+      lat: cluster.lat,
+      lon: cluster.lon,
+    })
+  }
+
+  for (const cluster of clusters) {
+    if (!cluster.label) continue
+    for (const member of cluster.members) {
+      if (member.side === 'start') {
+        member.row.startPlaceLabel = cluster.label
+      } else {
+        member.row.endPlaceLabel = cluster.label
+      }
+    }
+  }
+
+  for (const row of manifestRows) {
+    const startFallback = row.startPlaceLabel || formatCoordLabel(row.startLat, row.startLon)
+    const endFallback = row.endPlaceLabel || formatCoordLabel(row.endLat, row.endLon)
+    const nextTitle = `${startFallback} → ${endFallback} · ${row.distanceNm} nm`
+
+    if (
+      startFallback === row.startPlaceLabel &&
+      endFallback === row.endPlaceLabel &&
+      nextTitle === row.title
+    ) {
+      continue
+    }
+
+    row.startPlaceLabel = row.startPlaceLabel || null
+    row.endPlaceLabel = row.endPlaceLabel || null
+    row.title = nextTitle
+
+    const bundlePath = join(OUTPUT_DIR, row.file)
+    const bundle = JSON.parse(readFileSync(bundlePath, 'utf8'))
+    bundle.startPlaceLabel = row.startPlaceLabel
+    bundle.endPlaceLabel = row.endPlaceLabel
+    bundle.title = row.title
+    writeFileSync(bundlePath, `${JSON.stringify(bundle, null, 2)}\n`, 'utf8')
+  }
+}
+
+function buildEndpointClusters(manifestRows) {
+  const clusters = []
+
+  for (const row of manifestRows) {
+    addEndpointToClusters(clusters, row, 'start', row.startLat, row.startLon, row.startPlaceLabel)
+    addEndpointToClusters(clusters, row, 'end', row.endLat, row.endLon, row.endPlaceLabel)
+  }
+
+  for (const cluster of clusters) {
+    cluster.label = pickClusterLabel(cluster.seedLabels)
+  }
+
+  return clusters
+}
+
+function addEndpointToClusters(clusters, row, side, lat, lon, label) {
+  let bestCluster = null
+  let bestDistance = Infinity
+
+  for (const cluster of clusters) {
+    const distanceNm = haversineNm(lat, lon, cluster.lat, cluster.lon)
+    if (distanceNm > LABEL_CLUSTER_RADIUS_NM) continue
+    if (distanceNm >= bestDistance) continue
+    bestCluster = cluster
+    bestDistance = distanceNm
+  }
+
+  if (!bestCluster) {
+    bestCluster = {
+      lat,
+      lon,
+      members: [],
+      seedLabels: [],
+      avoidLabels: new Set(),
+    }
+    clusters.push(bestCluster)
+  } else {
+    const size = bestCluster.members.length
+    bestCluster.lat = (bestCluster.lat * size + lat) / (size + 1)
+    bestCluster.lon = (bestCluster.lon * size + lon) / (size + 1)
+  }
+
+  bestCluster.members.push({ row, side, lat, lon })
+  if (label) {
+    bestCluster.seedLabels.push(label)
+  }
+}
+
+function pickClusterLabel(labels) {
+  if (!labels.length) return null
+
+  const counts = new Map()
+  for (const label of labels) {
+    counts.set(label, (counts.get(label) || 0) + 1)
+  }
+
+  let best = null
+  let bestCount = -1
+  for (const [label, count] of counts.entries()) {
+    if (count > bestCount) {
+      best = label
+      bestCount = count
+    }
+  }
+
+  return best
+}
+
+function resolveClusterLabelFromRouteContext(accessToken, cluster, clusters, manifestRows) {
+  if (!XAI_API_KEY) return null
+
+  const reverse = reverseGeocodeCoordinate(accessToken, cluster.lat, cluster.lon)
+  const rawCandidates = []
+  const regions = [
+    smallSearchRegion(cluster.lat, cluster.lon, 12),
+    smallSearchRegion(cluster.lat, cluster.lon, 24),
+  ]
+
+  for (const region of regions) {
+    for (const query of APPLE_CONTEXT_QUERIES) {
+      rawCandidates.push(...searchPlaces(accessToken, query, cluster.lat, cluster.lon, region))
+    }
+  }
+
+  const nearbyCandidates = collectNearbyContextualCandidates(rawCandidates, cluster.lat, cluster.lon)
+  const routeContext = collectClusterRouteContext(cluster, clusters, manifestRows)
+  const candidateLabels = new Set(
+    nearbyCandidates.map((candidate) => normalizeContextualKey(candidate.label)).filter(Boolean),
+  )
+
+  for (const label of routeContext.oppositeLabels) {
+    cluster.avoidLabels.add(label)
+  }
+
+  if (!nearbyCandidates.length) {
+    return null
+  }
+
+  const payload = postSyncJson('https://api.x.ai/v1/chat/completions', XAI_API_KEY, {
+    model: XAI_CONTEXT_MODEL,
+    temperature: 0.15,
+    store: false,
+    messages: [
+      {
+        role: 'system',
+        content:
+          'You label sailing stop locations for cruisers. Return JSON only in the form {"label": string|null}. Use the route context and nearby Apple place candidates to choose a familiar local place name sailors would actually use. Prefer known cays, islands, anchorages, harbors, marinas, settlements, and towns. Avoid obscure cuts, channels, and chart micro-features unless they are clearly the common local name. Do not simply repeat another distinct nearby stop unless the evidence shows it is the same place.',
+      },
+      {
+        role: 'user',
+        content: [
+          `Coordinate: ${cluster.lat.toFixed(5)}, ${cluster.lon.toFixed(5)}`,
+          reverse ? `Apple reverse geocode: ${summarizeAppleResult(reverse)}` : null,
+          routeContext.oppositeLabels.length
+            ? `Directly connected passage endpoints:\n${routeContext.oppositeLabels.map((label) => `- ${label}`).join('\n')}`
+            : null,
+          routeContext.nearbyKnown.length
+            ? `Nearby already-resolved stops:\n${routeContext.nearbyKnown
+                .map((candidate) => `- ${candidate.label} (${candidate.distanceNm.toFixed(1)} nm)`)
+                .join('\n')}`
+            : null,
+          nearbyCandidates.length
+            ? `Nearby Apple candidates:\n${nearbyCandidates
+                .map((candidate) => {
+                  const suffix = candidate.poiCategory
+                    ? ` (${candidate.poiCategory}, ${candidate.distanceNm.toFixed(1)} nm)`
+                    : ` (${candidate.distanceNm.toFixed(1)} nm)`
+                  return `- ${candidate.label}${suffix}`
+                })
+                .join('\n')}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join('\n\n'),
+      },
+    ],
+  })
+
+  const label = parseXaiContextualLabel(payload)
+  if (!label) return null
+  if (!candidateLabels.has(normalizeContextualKey(label))) return null
+  if (cluster.avoidLabels.has(label)) return null
+  return label
+}
+
+function collectClusterRouteContext(cluster, clusters, manifestRows) {
+  const oppositeLabels = new Set()
+  const nearbyKnown = []
+
+  for (const member of cluster.members) {
+    const otherLat = member.side === 'start' ? member.row.endLat : member.row.startLat
+    const otherLon = member.side === 'start' ? member.row.endLon : member.row.startLon
+    const oppositeLabel =
+      member.side === 'start' ? member.row.endPlaceLabel || null : member.row.startPlaceLabel || null
+    if (oppositeLabel) oppositeLabels.add(oppositeLabel)
+
+    const neighborRows = [manifestRows[manifestRows.indexOf(member.row) - 1], manifestRows[manifestRows.indexOf(member.row) + 1]].filter(Boolean)
+    for (const neighbor of neighborRows) {
+      if (neighbor.startPlaceLabel) oppositeLabels.add(neighbor.startPlaceLabel)
+      if (neighbor.endPlaceLabel) oppositeLabels.add(neighbor.endPlaceLabel)
+    }
+
+    cluster.avoidLabels.add(oppositeLabel || '')
+    cluster.avoidLabels.add(formatCoordLabel(otherLat, otherLon))
+  }
+
+  for (const other of clusters) {
+    if (other === cluster || !other.label) continue
+    const distanceNm = haversineNm(cluster.lat, cluster.lon, other.lat, other.lon)
+    if (distanceNm > LABEL_NEIGHBOR_MAX_NM) continue
+    nearbyKnown.push({ label: other.label, distanceNm })
+  }
+
+  nearbyKnown.sort((left, right) => left.distanceNm - right.distanceNm)
+
+  return {
+    oppositeLabels: Array.from(oppositeLabels).filter(Boolean).slice(0, 8),
+    nearbyKnown: nearbyKnown.slice(0, 8),
+  }
+}
+
+function nearestKnownEndpointLabel(lat, lon, points, avoidLabels, maxDistanceNm = LABEL_NEIGHBOR_MAX_NM) {
+  const avoidSet = new Set((avoidLabels || []).filter(Boolean))
+  let best = null
+  let bestDistance = Infinity
+
+  for (const point of points) {
+    if (!point?.label) continue
+    if (avoidSet.has(point.label)) continue
+
+    const distanceNm = haversineNm(lat, lon, point.lat, point.lon)
+    if (distanceNm > maxDistanceNm) continue
+    if (distanceNm >= bestDistance) continue
+
+    best = point.label
+    bestDistance = distanceNm
+  }
+
+  return best
+}
+
 function scanSelfTrack() {
   const rows = []
   const batches = splitRangeByDays(RANGE_START, RANGE_STOP, SCAN_BATCH_DAYS)
@@ -209,7 +523,7 @@ function scanSelfTrack() {
         t,
         lat: normalized.lat,
         lon: normalized.lon,
-        sog: numberOrNull(row.sog),
+        sog: msToKnots(numberOrNull(row.sog)),
       })
     }
   }
@@ -399,7 +713,7 @@ function fetchSelfSamples(startIso, stopIso, every) {
       t,
       lat: normalized.lat,
       lon: normalized.lon,
-      sog: numberOrNull(row.sog),
+      sog: msToKnots(numberOrNull(row.sog)),
       cog: numberOrNull(row.cog),
       headingTrue,
       headingMagnetic,
@@ -1556,7 +1870,9 @@ async function createAppleContextResolver() {
   const token = await getAppleMapsAccessToken()
   if (!token) return null
 
-  return (lat, lng) => resolveContextualPlaceLabel(token, lat, lng)
+  const resolver = (lat, lng) => resolveContextualPlaceLabel(token, lat, lng)
+  resolver.accessToken = token
+  return resolver
 }
 
 async function getAppleMapsAccessToken() {
@@ -1618,11 +1934,22 @@ function resolveContextualPlaceLabel(accessToken, lat, lng) {
   if (direct) return { label: direct }
 
   const region = smallSearchRegion(lat, lng, 10)
+  const nearbyCandidates = []
   for (const query of APPLE_CONTEXT_QUERIES) {
     const nearby = searchPlaces(accessToken, query, lat, lng, region)
+    nearbyCandidates.push(...nearby)
     const best = rankNearbyContextualResult(nearby, lat, lng)
     if (best) return { label: best }
   }
+
+  const broaderRegion = smallSearchRegion(lat, lng, 24)
+  for (const query of APPLE_CONTEXT_QUERIES) {
+    const nearby = searchPlaces(accessToken, query, lat, lng, broaderRegion)
+    nearbyCandidates.push(...nearby)
+  }
+
+  const aiLabel = disambiguateContextualLabelWithXai(lat, lng, reverse, nearbyCandidates)
+  if (aiLabel) return { label: aiLabel }
 
   return null
 }
@@ -1661,6 +1988,155 @@ function fetchSyncJson(url, accessToken) {
   }
 }
 
+function postSyncJson(url, apiKey, payload) {
+  let buffer = ''
+  try {
+    buffer = execFileSync(
+      'curl',
+      [
+        '-sS',
+        '--max-time',
+        '20',
+        '-X',
+        'POST',
+        '-H',
+        `Authorization: Bearer ${apiKey}`,
+        '-H',
+        'Content-Type: application/json',
+        '--data-raw',
+        JSON.stringify(payload),
+        url,
+      ],
+      {
+        encoding: 'utf8',
+        maxBuffer: QUERY_MAX_BUFFER,
+      },
+    )
+  } catch {
+    return null
+  }
+
+  try {
+    return JSON.parse(buffer)
+  } catch {
+    return null
+  }
+}
+
+function summarizeAppleResult(result) {
+  if (!result || typeof result !== 'object') return null
+  const structured = result.structuredAddress || {}
+  const bits = [
+    result.name || result.displayName || null,
+    structured.areasOfInterest?.[0] || null,
+    structured.subLocality || null,
+    structured.locality || null,
+    structured.administrativeArea || null,
+    result.country || null,
+  ].filter((value) => typeof value === 'string' && value.trim())
+  return bits.length ? bits.join(' | ') : null
+}
+
+function collectNearbyContextualCandidates(results, lat, lng) {
+  const seen = new Set()
+  const candidates = []
+
+  for (const result of results) {
+    const label = cleanContextualLabel(result?.name || result?.displayName)
+    if (!label || isGenericContextualLabel(label, result)) continue
+
+    const resLat = numberOrNull(result?.coordinate?.latitude)
+    const resLon = numberOrNull(result?.coordinate?.longitude)
+    if (!Number.isFinite(resLat) || !Number.isFinite(resLon)) continue
+
+    const key = normalizeContextualKey(label)
+    if (seen.has(key)) continue
+    seen.add(key)
+
+    candidates.push({
+      label,
+      distanceNm: haversineNm(lat, lng, resLat, resLon),
+      poiCategory: typeof result?.poiCategory === 'string' ? result.poiCategory : null,
+    })
+  }
+
+  candidates.sort((left, right) => left.distanceNm - right.distanceNm)
+  return candidates.slice(0, 12)
+}
+
+function parseXaiContextualLabel(payload) {
+  const content = payload?.choices?.[0]?.message?.content?.trim() || ''
+  if (!content) return null
+
+  const match = content.match(/\{[\s\S]*\}/)
+  const candidatePayload = match ? match[0] : content
+
+  try {
+    const parsed = JSON.parse(candidatePayload)
+    const cleaned = cleanContextualLabel(parsed?.label)
+    return cleaned && !GENERIC_CONTEXTUAL_LABELS.has(normalizeContextualKey(cleaned))
+      ? cleaned
+      : null
+  } catch {
+    const cleaned = cleanContextualLabel(content.replace(/^label\s*:\s*/i, '').trim())
+    return cleaned && !GENERIC_CONTEXTUAL_LABELS.has(normalizeContextualKey(cleaned))
+      ? cleaned
+      : null
+  }
+}
+
+function disambiguateContextualLabelWithXai(lat, lng, reverse, nearbyResults) {
+  if (!XAI_API_KEY) return null
+
+  const cacheKey = `${lat.toFixed(5)},${lng.toFixed(5)}`
+  if (CONTEXTUAL_AI_CACHE.has(cacheKey)) {
+    return CONTEXTUAL_AI_CACHE.get(cacheKey) || null
+  }
+
+  const reverseSummary = summarizeAppleResult(reverse)
+  const nearbyCandidates = collectNearbyContextualCandidates(nearbyResults, lat, lng)
+  if (!nearbyCandidates.length) {
+    CONTEXTUAL_AI_CACHE.set(cacheKey, null)
+    return null
+  }
+
+  const payload = postSyncJson('https://api.x.ai/v1/chat/completions', XAI_API_KEY, {
+    model: XAI_CONTEXT_MODEL,
+    temperature: 0.2,
+    store: false,
+    messages: [
+      {
+        role: 'system',
+        content:
+          'You label sailing legs for cruisers. Return JSON only in the form {"label": string|null}. If the coordinate is offshore, choose the nearest familiar local place name sailors would actually use to describe that area. Prefer well-known cays, islands, anchorages, harbors, bays, marinas, settlements, or towns over obscure cuts, channels, or chart-only micro-features. Only use a cut or channel name when it is clearly the common cruising reference. Never return a country, state, address, or broad water body. Only return {"label": null} if no nearby specific place is available.',
+      },
+      {
+        role: 'user',
+        content: [
+          `Coordinate: ${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+          reverseSummary ? `Apple reverse geocode: ${reverseSummary}` : null,
+          nearbyCandidates.length
+            ? `Nearby Apple candidates:\n${nearbyCandidates
+                .map((candidate) => {
+                  const suffix = candidate.poiCategory
+                    ? ` (${candidate.poiCategory}, ${candidate.distanceNm.toFixed(1)} nm)`
+                    : ` (${candidate.distanceNm.toFixed(1)} nm)`
+                  return `- ${candidate.label}${suffix}`
+                })
+                .join('\n')}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join('\n\n'),
+      },
+    ],
+  })
+
+  const label = parseXaiContextualLabel(payload)
+  CONTEXTUAL_AI_CACHE.set(cacheKey, label || null)
+  return label || null
+}
+
 function pickContextualLabel(result) {
   if (!result || typeof result !== 'object') return null
   const structured = result.structuredAddress || {}
@@ -1673,7 +2149,7 @@ function pickContextualLabel(result) {
   ]
   for (const candidate of candidates) {
     const cleaned = cleanContextualLabel(candidate)
-    if (cleaned) return cleaned
+    if (cleaned && !isGenericContextualLabel(cleaned, result)) return cleaned
   }
   return null
 }
@@ -1683,14 +2159,12 @@ function rankNearbyContextualResult(results, lat, lng) {
   let bestScore = -Infinity
   for (const result of results) {
     const cleaned = cleanContextualLabel(result?.name || result?.displayName)
-    if (!cleaned) continue
+    if (!cleaned || isGenericContextualLabel(cleaned, result)) continue
     const resLat = numberOrNull(result?.coordinate?.latitude)
     const resLon = numberOrNull(result?.coordinate?.longitude)
     if (!Number.isFinite(resLat) || !Number.isFinite(resLon)) continue
     const distanceNm = haversineNm(lat, lng, resLat, resLon)
-    const marineBoost = /\b(marina|harbor|harbour|port|anchorage|bay|inlet|key)\b/i.test(cleaned)
-      ? 4
-      : 0
+    const marineBoost = isSpecificMarinePlaceLabel(cleaned) ? 4 : 0
     const score = marineBoost - distanceNm
     if (score > bestScore) {
       bestScore = score
@@ -1706,6 +2180,32 @@ function cleanContextualLabel(value) {
   if (!cleaned) return null
   if (isAddressLike(cleaned)) return null
   return cleaned
+}
+
+function normalizeContextualKey(value) {
+  if (typeof value !== 'string') return ''
+  return value.trim().replace(/\s+/g, ' ').toLowerCase()
+}
+
+function isSpecificMarinePlaceLabel(value) {
+  return /\b(?:marina|harbor|harbour|port|anchorage|bay|inlet|cay|island|sound|channel|river|creek|point|shoal)\b/i.test(
+    value,
+  )
+}
+
+function isGenericContextualLabel(value, result) {
+  const key = normalizeContextualKey(value)
+  if (!key) return true
+  if (GENERIC_CONTEXTUAL_LABELS.has(key)) return true
+  if (isSpecificMarinePlaceLabel(value)) return false
+
+  const structured = result?.structuredAddress || {}
+  return [
+    result?.country,
+    structured.administrativeArea,
+    structured.locality,
+    structured.subLocality,
+  ].some((candidate) => normalizeContextualKey(candidate) === key)
 }
 
 function isAddressLike(value) {

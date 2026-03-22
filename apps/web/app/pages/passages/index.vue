@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import type { PassageDto } from '~/types/passage'
 import { usePassageFormat } from '~/composables/usePassageFormat'
+import PassagePlaybackWorkspace from '~/components/passages/playback/PassagePlaybackWorkspace.vue'
 
+defineOptions({ inheritAttrs: false })
 definePageMeta({ keepalive: true })
 
 const config = useRuntimeConfig()
-const appName = config.public.appName || 'TideEye'
+const appName = config.public.appName || 'Tideye'
 
 const {
   formatRange,
@@ -25,35 +27,8 @@ const selectedKey = computed(() => selectedPassageId.value ?? '')
 const { data: selectedPassage } = await usePassageById(selectedKey)
 const { places, placesPending, placesError } = usePassagePlaces(selectedPassageId)
 
-const {
-  data: trafficList,
-  pending: trafficPending,
-  error: trafficError,
-} = await usePassageTrafficList(selectedPassageId)
-
-const trafficMapCircles = computed(() => {
-  const rows = trafficList.value ?? []
-  /** MapKit circle overlay — hex required by MapKit JS. */
-  // eslint-disable-next-line narduk/no-inline-hex -- MapKit circle color API
-  const color = '#64748b'
-  const out: Array<{ lat: number; lng: number; radius: number; color: string; opacity?: number }> =
-    []
-  for (const r of rows) {
-    if (!r.samples?.length) continue
-    const s = r.samples[Math.floor(r.samples.length / 2)] ?? r.samples[0]
-    if (!s) continue
-    out.push({
-      lat: s.lat,
-      lng: s.lon,
-      radius: 450,
-      color,
-      opacity: 0.42,
-    })
-  }
-  return out
-})
-
 const query = ref('')
+const showStats = ref(false)
 
 const filtered = computed(() => {
   const list = passages.value
@@ -85,6 +60,71 @@ const stats = computed(() => {
   const totalNm = list.reduce((s, p) => s + p.distanceNm, 0)
   const longest = list.reduce((a, b) => (a.distanceNm >= b.distanceNm ? a : b))
   return { count: list.length, totalNm, longest }
+})
+
+function hoursBetween(startedAt: string, endedAt: string) {
+  const startMs = Date.parse(startedAt)
+  const endMs = Date.parse(endedAt)
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) return 0
+  return (endMs - startMs) / 3_600_000
+}
+
+function normalizeStatPlaceLabel(label: string | null | undefined) {
+  if (!label?.trim()) return null
+  if (/\d+\.\d+°[NS]\s+\d+\.\d+°[EW]/.test(label)) return null
+  return label.trim()
+}
+
+const passageStats = computed(() => {
+  const list = passages.value ?? []
+  if (!list.length) {
+    return {
+      totalHours: 0,
+      averageNm: 0,
+      shortest: null as PassageDto | null,
+      topStarts: [] as Array<{ label: string; count: number }>,
+      topEnds: [] as Array<{ label: string; count: number }>,
+      byYear: [] as Array<{ year: string; count: number; nm: number }>,
+    }
+  }
+
+  const shortest = list.reduce((a, b) => (a.distanceNm <= b.distanceNm ? a : b))
+  const totalHours = list.reduce((sum, passage) => sum + hoursBetween(passage.startedAt, passage.endedAt), 0)
+  const averageNm = stats.value.totalNm / list.length
+
+  const startCounts = new Map<string, number>()
+  const endCounts = new Map<string, number>()
+  const yearMap = new Map<string, { year: string; count: number; nm: number }>()
+
+  for (const passage of list) {
+    const startLabel = normalizeStatPlaceLabel(passage.startPlaceLabel)
+    const endLabel = normalizeStatPlaceLabel(passage.endPlaceLabel)
+    if (startLabel) startCounts.set(startLabel, (startCounts.get(startLabel) || 0) + 1)
+    if (endLabel) endCounts.set(endLabel, (endCounts.get(endLabel) || 0) + 1)
+
+    const year = passage.startedAt.slice(0, 4)
+    const entry = yearMap.get(year) || { year, count: 0, nm: 0 }
+    entry.count += 1
+    entry.nm += passage.distanceNm
+    yearMap.set(year, entry)
+  }
+
+  return {
+    totalHours,
+    averageNm,
+    shortest,
+    topStarts: Array.from(startCounts.entries())
+      .map(([label, count]) => ({ label, count }))
+      .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label))
+      .slice(0, 5),
+    topEnds: Array.from(endCounts.entries())
+      .map(([label, count]) => ({ label, count }))
+      .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label))
+      .slice(0, 5),
+    byYear: Array.from(yearMap.values())
+      .sort((left, right) => right.year.localeCompare(left.year))
+      .slice(0, 6),
+  }
 })
 
 /** Latest voyage end date in the DB (seed file), for “how fresh is this data?” */
@@ -148,38 +188,59 @@ onMounted(() => {
 
 const toast = useToast()
 
-watch(
-  [selectedPassage, selectedPassageId, places],
-  () => {
-    const p = selectedPassage.value
-    if (p && selectedPassageId.value) {
-      const seoTitle = selectedHeadlineTitle.value ?? p.title
-      useSeo({
-        title: `${seoTitle} — ${appName}`,
-        description: `Voyage ${formatRange(p.startedAt, p.endedAt)} (${p.distanceNm.toFixed(0)} nm).`,
-        ogImage: {
-          title: seoTitle,
-          description: `${p.distanceNm.toFixed(0)} nm`,
-          icon: 'i-lucide-route',
-        },
-      })
-      useWebPageSchema({
-        name: seoTitle,
-        description: `Sailing voyage (${p.distanceNm.toFixed(0)} nautical miles).`,
-      })
-    } else {
-      useSeo({
-        title: `${appName} — Voyages`,
-        description: 'Sailing voyages from your vessel track history with maps and polylines.',
-      })
-      useWebPageSchema({
-        name: `${appName} — Voyages`,
-        description: 'Sailing voyages from your vessel track history with maps and polylines.',
-      })
-    }
-  },
-  { immediate: true },
-)
+const pageSeoTitle = computed(() => {
+  const passage = selectedPassage.value
+  if (!passage || !selectedPassageId.value) return `${appName} — Voyages`
+  const seoTitle = selectedHeadlineTitle.value ?? passage.title
+  return `${seoTitle} — ${appName}`
+})
+
+const pageSeoDescription = computed(() => {
+  const passage = selectedPassage.value
+  if (!passage || !selectedPassageId.value) {
+    return 'Sailing voyages from your vessel track history with maps and polylines.'
+  }
+  return `Voyage ${formatRange(passage.startedAt, passage.endedAt)} (${passage.distanceNm.toFixed(0)} nm).`
+})
+
+const pageSchemaName = computed(() => {
+  const passage = selectedPassage.value
+  if (!passage || !selectedPassageId.value) return `${appName} — Voyages`
+  return selectedHeadlineTitle.value ?? passage.title
+})
+
+const pageSchemaDescription = computed(() => {
+  const passage = selectedPassage.value
+  if (!passage || !selectedPassageId.value) {
+    return 'Sailing voyages from your vessel track history with maps and polylines.'
+  }
+  return `Sailing voyage (${passage.distanceNm.toFixed(0)} nautical miles).`
+})
+
+useSeoMeta({
+  title: () => pageSeoTitle.value,
+  description: () => pageSeoDescription.value,
+  ogTitle: () => pageSeoTitle.value,
+  ogDescription: () => pageSeoDescription.value,
+  twitterTitle: () => pageSeoTitle.value,
+  twitterDescription: () => pageSeoDescription.value,
+  twitterCard: 'summary_large_image',
+})
+
+useHead(() => ({
+  script: [
+    {
+      key: 'passages-webpage-schema',
+      type: 'application/ld+json',
+      textContent: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'WebPage',
+        name: pageSchemaName.value,
+        description: pageSchemaDescription.value,
+      }),
+    },
+  ],
+}))
 
 function selectPassage(id: string | null) {
   selectedPassageId.value = id
@@ -207,6 +268,11 @@ function placeLines(place: { formattedAddressLines: string[]; name: string | nul
   if (!place) return '—'
   if (place.formattedAddressLines?.length) return place.formattedAddressLines.join(', ')
   return place.name ?? '—'
+}
+
+function selectPassageFromStats(id: string) {
+  selectPassage(id)
+  showStats.value = false
 }
 </script>
 
@@ -273,6 +339,15 @@ function placeLines(place: { formattedAddressLines: string[]; name: string | nul
             />
           </UTooltip>
           <UButton
+            icon="i-lucide-chart-column-big"
+            variant="soft"
+            color="neutral"
+            size="xs"
+            @click="showStats = true"
+          >
+            <span class="hidden sm:inline">Stats</span>
+          </UButton>
+          <UButton
             icon="i-lucide-refresh-cw"
             variant="soft"
             color="neutral"
@@ -324,14 +399,12 @@ function placeLines(place: { formattedAddressLines: string[]; name: string | nul
 
     <div v-else class="flex min-h-0 flex-1 flex-col gap-0 md:flex-row md:gap-0">
       <div
-        class="order-2 flex min-h-0 w-full flex-col border-t border-default md:order-1 md:w-[min(20rem,34vw)] md:shrink-0 md:border-t-0 md:border-r"
+        class="order-2 flex min-h-0 w-full flex-col border-t border-default md:order-1 md:w-[min(18rem,31vw)] md:shrink-0 md:border-t-0 md:border-r"
       >
-        <div class="min-h-0 flex-1 space-y-3 overflow-y-auto p-2 sm:p-3 md:pr-2">
-          <div>
-            <p class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-dimmed">
-              Your trips
-            </p>
-            <p class="text-xs text-muted leading-snug">
+        <div class="min-h-0 flex-1 space-y-2.5 overflow-y-auto p-2 sm:p-2.5 md:pr-2">
+          <div class="space-y-1">
+            <p class="text-xs font-semibold uppercase tracking-wide text-dimmed">Your trips</p>
+            <p class="text-xs leading-snug text-muted">
               Tap a trip to expand departure and arrival; the map shows the track for the open row.
             </p>
           </div>
@@ -374,7 +447,7 @@ function placeLines(place: { formattedAddressLines: string[]; name: string | nul
             No voyages match “{{ query }}”.
           </p>
 
-          <ul v-else class="flex flex-col gap-3">
+          <ul v-else class="flex flex-col gap-2.5">
             <li
               v-for="p in displayed"
               :key="p.id"
@@ -427,7 +500,7 @@ function placeLines(place: { formattedAddressLines: string[]; name: string | nul
 
               <div
                 v-if="selectedPassageId === p.id"
-                class="space-y-3 border-t border-default bg-muted/25 px-3 py-3 sm:px-4"
+                class="space-y-2.5 border-t border-default bg-muted/25 px-3 py-3"
               >
                 <div class="flex items-center justify-between gap-2">
                   <p class="text-xs font-semibold uppercase tracking-wide text-dimmed">Details</p>
@@ -460,19 +533,19 @@ function placeLines(place: { formattedAddressLines: string[]; name: string | nul
                     icon="i-lucide-info"
                   />
 
-                  <div class="space-y-4">
-                    <div class="rounded-lg border border-default bg-default/80 p-3">
+                  <div class="space-y-2.5">
+                    <div class="rounded-lg border border-default bg-default/80 p-2.5">
                       <div class="flex items-center gap-2 text-dimmed">
                         <UIcon name="i-lucide-anchor" class="size-3.5 shrink-0" />
                         <p class="text-[11px] font-semibold uppercase tracking-wide">Departure</p>
                       </div>
-                      <p class="mt-2 text-sm leading-snug text-default">
+                      <p class="mt-1.5 text-sm leading-snug text-default">
                         {{ placeLines(places.start) }}
                       </p>
-                      <p class="mt-1.5 font-mono text-[11px] text-muted">
+                      <p class="mt-1 font-mono text-[11px] text-muted">
                         {{ formatCoord(p.startLat, p.startLon) }}
                       </p>
-                      <div class="mt-3 flex flex-wrap gap-1.5">
+                      <div class="mt-2.5 flex flex-wrap gap-1.5">
                         <UButton
                           size="xs"
                           variant="soft"
@@ -495,18 +568,18 @@ function placeLines(place: { formattedAddressLines: string[]; name: string | nul
                       </div>
                     </div>
 
-                    <div class="rounded-lg border border-default bg-default/80 p-3">
+                    <div class="rounded-lg border border-default bg-default/80 p-2.5">
                       <div class="flex items-center gap-2 text-dimmed">
                         <UIcon name="i-lucide-flag" class="size-3.5 shrink-0" />
                         <p class="text-[11px] font-semibold uppercase tracking-wide">Arrival</p>
                       </div>
-                      <p class="mt-2 text-sm leading-snug text-default">
+                      <p class="mt-1.5 text-sm leading-snug text-default">
                         {{ placeLines(places.end) }}
                       </p>
-                      <p class="mt-1.5 font-mono text-[11px] text-muted">
+                      <p class="mt-1 font-mono text-[11px] text-muted">
                         {{ formatCoord(p.endLat, p.endLon) }}
                       </p>
-                      <div class="mt-3 flex flex-wrap gap-1.5">
+                      <div class="mt-2.5 flex flex-wrap gap-1.5">
                         <UButton
                           size="xs"
                           variant="soft"
@@ -530,33 +603,6 @@ function placeLines(place: { formattedAddressLines: string[]; name: string | nul
                     </div>
                   </div>
                 </template>
-
-                <div
-                  v-if="selectedPassageId"
-                  class="rounded-lg border border-default bg-default/80 p-3"
-                >
-                  <div class="flex items-center gap-2 text-dimmed">
-                    <UIcon name="i-lucide-radar" class="size-3.5 shrink-0" />
-                    <p class="text-[11px] font-semibold uppercase tracking-wide">
-                      Recorded AIS (seed)
-                    </p>
-                  </div>
-                  <p v-if="trafficPending" class="mt-2 text-xs text-muted">Loading contacts…</p>
-                  <p v-else-if="trafficError" class="mt-2 text-xs text-error">
-                    Could not load traffic data.
-                  </p>
-                  <p v-else-if="!trafficList?.length" class="mt-2 text-xs text-muted">
-                    No traffic rows in D1 for this leg. Re-seed with Phase E export enabled.
-                  </p>
-                  <ul v-else class="mt-2 max-h-36 space-y-1 overflow-y-auto text-xs">
-                    <li v-for="t in trafficList" :key="t.mmsi" class="leading-snug text-default">
-                      <span class="font-mono text-[11px] text-muted">MMSI {{ t.mmsi }}</span>
-                      <span v-if="t.profile.shipTypeName" class="text-muted">
-                        — {{ t.profile.shipTypeName }}
-                      </span>
-                    </li>
-                  </ul>
-                </div>
               </div>
             </li>
           </ul>
@@ -566,17 +612,190 @@ function placeLines(place: { formattedAddressLines: string[]; name: string | nul
       <div
         class="order-1 min-h-[min(52vh,420px)] shrink-0 md:order-2 md:min-h-0 md:flex-1 md:p-2 md:pl-1"
       >
-        <p
-          class="mb-1.5 hidden text-center text-xs font-medium uppercase tracking-wide text-dimmed md:block"
-        >
-          Map
-        </p>
+        <PassagePlaybackWorkspace
+          v-if="selectedPassageId"
+          :passage-id="selectedPassageId"
+          :passage="selectedPassage"
+          :places="places"
+          :places-pending="placesPending"
+        />
         <PassagesMapExplorer
+          v-else
           v-model:selected-id="selectedPassageId"
           :passages="mapPassages"
-          :traffic-circles="trafficMapCircles"
         />
       </div>
     </div>
   </div>
+
+  <Teleport to="body">
+    <div
+      v-if="showStats"
+      class="fixed inset-0 z-[60] flex items-start justify-center bg-black/35 px-4 py-10 backdrop-blur-sm"
+      @click.self="showStats = false"
+    >
+      <div class="w-full max-w-3xl rounded-2xl border border-default bg-default shadow-2xl">
+        <div class="flex items-start justify-between gap-4 border-b border-default px-5 py-4">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.28em] text-dimmed">
+              Voyage Stats
+            </p>
+            <h2 class="mt-1 font-display text-2xl font-semibold text-default">
+              The stuff everybody asks about
+            </h2>
+          </div>
+          <UButton
+            icon="i-lucide-x"
+            variant="ghost"
+            color="neutral"
+            size="sm"
+            aria-label="Close stats"
+            @click="showStats = false"
+          />
+        </div>
+
+        <div class="grid gap-4 px-5 py-5 lg:grid-cols-[1.15fr_0.85fr]">
+          <div class="space-y-4">
+            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div class="rounded-xl border border-default bg-elevated/70 p-3">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-dimmed">
+                  Total Trips
+                </p>
+                <p class="mt-2 text-2xl font-semibold tabular-nums text-default">
+                  {{ stats.count }}
+                </p>
+              </div>
+              <div class="rounded-xl border border-default bg-elevated/70 p-3">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-dimmed">
+                  Miles Sailed
+                </p>
+                <p class="mt-2 text-2xl font-semibold tabular-nums text-default">
+                  {{ stats.totalNm.toFixed(0) }}
+                </p>
+                <p class="text-xs text-muted">nautical miles</p>
+              </div>
+              <div class="rounded-xl border border-default bg-elevated/70 p-3">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-dimmed">
+                  Days Underway
+                </p>
+                <p class="mt-2 text-2xl font-semibold tabular-nums text-default">
+                  {{ (passageStats.totalHours / 24).toFixed(1) }}
+                </p>
+              </div>
+              <div class="rounded-xl border border-default bg-elevated/70 p-3">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-dimmed">
+                  Avg Passage
+                </p>
+                <p class="mt-2 text-2xl font-semibold tabular-nums text-default">
+                  {{ passageStats.averageNm.toFixed(0) }}
+                </p>
+                <p class="text-xs text-muted">nm per trip</p>
+              </div>
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-2">
+              <UButton
+                v-if="stats.longest"
+                color="neutral"
+                variant="ghost"
+                class="rounded-xl border border-primary/20 bg-primary/5 p-4 text-left transition hover:bg-primary/10"
+                @click="selectPassageFromStats(stats.longest.id)"
+              >
+                <div class="min-w-0 text-left">
+                  <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary/80">
+                    Longest Passage
+                  </p>
+                  <p class="mt-2 line-clamp-2 font-display text-xl font-semibold text-default">
+                    {{ rowRouteHeadline(stats.longest) }}
+                  </p>
+                  <p class="mt-2 text-sm text-muted">
+                    {{ stats.longest.distanceNm.toFixed(1) }} nm ·
+                    {{ durationDays(stats.longest.startedAt, stats.longest.endedAt) }} days
+                  </p>
+                </div>
+              </UButton>
+
+              <UButton
+                v-if="passageStats.shortest"
+                color="neutral"
+                variant="ghost"
+                class="rounded-xl border border-default bg-elevated/70 p-4 text-left transition hover:bg-elevated"
+                @click="selectPassageFromStats(passageStats.shortest.id)"
+              >
+                <div class="min-w-0 text-left">
+                  <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-dimmed">
+                    Shortest Passage
+                  </p>
+                  <p class="mt-2 line-clamp-2 font-display text-xl font-semibold text-default">
+                    {{ rowRouteHeadline(passageStats.shortest) }}
+                  </p>
+                  <p class="mt-2 text-sm text-muted">
+                    {{ passageStats.shortest.distanceNm.toFixed(1) }} nm ·
+                    {{ hoursBetween(passageStats.shortest.startedAt, passageStats.shortest.endedAt).toFixed(1) }}
+                    hours
+                  </p>
+                </div>
+              </UButton>
+            </div>
+
+            <div class="rounded-xl border border-default bg-elevated/40 p-4">
+              <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-dimmed">
+                By Year
+              </p>
+              <div class="mt-3 grid gap-2 sm:grid-cols-3">
+                <div
+                  v-for="year in passageStats.byYear"
+                  :key="year.year"
+                  class="rounded-lg border border-default bg-default/80 px-3 py-2"
+                >
+                  <p class="text-sm font-semibold text-default">{{ year.year }}</p>
+                  <p class="mt-1 text-xs text-muted">
+                    {{ year.count }} trips · {{ year.nm.toFixed(0) }} nm
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <div class="rounded-xl border border-default bg-elevated/40 p-4">
+              <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-dimmed">
+                Frequent Departures
+              </p>
+              <ul class="mt-3 space-y-2">
+                <li
+                  v-for="place in passageStats.topStarts"
+                  :key="`start-${place.label}`"
+                  class="flex items-center justify-between gap-3 rounded-lg border border-default bg-default/80 px-3 py-2"
+                >
+                  <span class="min-w-0 truncate text-sm text-default">{{ place.label }}</span>
+                  <UBadge size="xs" variant="subtle" color="primary" class="tabular-nums">
+                    {{ place.count }}
+                  </UBadge>
+                </li>
+              </ul>
+            </div>
+
+            <div class="rounded-xl border border-default bg-elevated/40 p-4">
+              <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-dimmed">
+                Frequent Arrivals
+              </p>
+              <ul class="mt-3 space-y-2">
+                <li
+                  v-for="place in passageStats.topEnds"
+                  :key="`end-${place.label}`"
+                  class="flex items-center justify-between gap-3 rounded-lg border border-default bg-default/80 px-3 py-2"
+                >
+                  <span class="min-w-0 truncate text-sm text-default">{{ place.label }}</span>
+                  <UBadge size="xs" variant="subtle" color="primary" class="tabular-nums">
+                    {{ place.count }}
+                  </UBadge>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>

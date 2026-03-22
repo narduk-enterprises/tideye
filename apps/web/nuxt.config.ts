@@ -2,6 +2,9 @@ import { fileURLToPath } from 'node:url'
 import { resolve, dirname } from 'node:path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+const APP_NAME = process.env.APP_NAME?.trim()
+  ? process.env.APP_NAME.trim().replace(/^tideye$/i, 'Tideye')
+  : 'Tideye'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
@@ -52,7 +55,7 @@ export default defineNuxtConfig({
     signalKWriteToken: process.env.SIGNALK_WRITE_TOKEN || '',
     public: {
       appUrl: process.env.SITE_URL || 'https://tideye.nard.uk',
-      appName: process.env.APP_NAME || 'Tideye',
+      appName: APP_NAME,
       // Analytics (client-side tracking)
       posthogPublicKey: process.env.POSTHOG_PUBLIC_KEY || '',
       posthogHost: process.env.POSTHOG_HOST || 'https://us.i.posthog.com',
@@ -72,7 +75,7 @@ export default defineNuxtConfig({
 
   site: {
     url: process.env.SITE_URL || 'https://tideye.nard.uk',
-    name: 'Tideye',
+    name: APP_NAME,
     description: 'Tideye — powered by Nuxt 4 and Cloudflare Workers.',
     defaultLocale: 'en',
   },
@@ -80,7 +83,7 @@ export default defineNuxtConfig({
   schemaOrg: {
     identity: {
       type: 'Organization',
-      name: 'Tideye',
+      name: APP_NAME,
       url: process.env.SITE_URL || 'https://tideye.nard.uk',
       logo: '/favicon.svg',
     },

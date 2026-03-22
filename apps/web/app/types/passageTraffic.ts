@@ -10,6 +10,7 @@ export interface PassageAisProfileV1 {
   beamM: number | null
   draftM: number | null
   destination: string | null
+  aisClass?: string | null
   note?: string
 }
 

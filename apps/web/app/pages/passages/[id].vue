@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const route = useRoute()
 const config = useRuntimeConfig()
-const appName = config.public.appName || 'TideEye'
+const appName = config.public.appName || 'Tideye'
 const id = route.params.id as string
 
 useSeo({

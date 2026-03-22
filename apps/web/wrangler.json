@@ -17,6 +17,12 @@
       "database_id": "c99f831e-597d-4421-8a01-e863fc15585a"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "PLAYBACK",
+      "bucket_name": "tideye-playback"
+    }
+  ],
   "routes": [
     {
       "pattern": "tideye.nard.uk",
