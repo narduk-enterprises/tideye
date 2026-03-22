@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { h } from 'vue'
 import WidgetViewSwitcher from '../../shared/WidgetViewSwitcher.vue'
-import FuelTanksClassic from './FuelTanksClassic.vue'
-import FuelTanksRadial from './FuelTanksRadial.vue'
-import FuelTanksBars from './FuelTanksBars.vue'
+import TanksClassicView from '../shared/TanksClassicView.vue'
+import TanksBarsView from '../shared/TanksBarsView.vue'
+import TanksRadialView from '../shared/TanksRadialView.vue'
 import FuelTanksGallons from './FuelTanksGallons.vue'
 
 const props = defineProps<{
@@ -10,7 +11,11 @@ const props = defineProps<{
   maxStates?: number
 }>()
 
-const views = [FuelTanksGallons, FuelTanksBars, FuelTanksClassic, FuelTanksRadial, FuelTanksGallons]
+const FuelClassic = () => h(TanksClassicView, { title: 'Fuel', tankKey: 'fuel' })
+const FuelBars = () => h(TanksBarsView, { title: 'Fuel', tankKey: 'fuel' })
+const FuelRadial = () => h(TanksRadialView, { title: 'Fuel', tankKey: 'fuel' })
+
+const views = [FuelTanksGallons, FuelBars, FuelClassic, FuelRadial, FuelTanksGallons]
 </script>
 
 <template>

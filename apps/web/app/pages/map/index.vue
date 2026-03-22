@@ -14,17 +14,10 @@ import type { MapVesselItem } from '~/types/map'
 
 definePageMeta({ keepalive: true })
 
-const config = useRuntimeConfig()
-const appName = config.public.appName || 'Tideye'
-
-useSeo({
-  title: `${appName} — Live Map`,
-  description: `Real-time vessel position and tracking on an interactive marine chart.`,
-})
-useWebPageSchema({
-  name: `${appName} — Live Map`,
-  description: `Real-time vessel position and tracking on an interactive marine chart.`,
-})
+usePageSeo(
+  'Live Map',
+  'Real-time vessel position and tracking on an interactive marine chart.',
+)
 
 // Vessel data from SignalK
 const { lat, lng, hasPosition, heading, cog, sog, stw, satellites } = useVesselPosition()
@@ -141,45 +134,7 @@ const formatDepth = (v: number | null) => (v != null ? `${v.toFixed(1)} ft` : '�
 const formatTemp = (v: number | null) => (v != null ? `${v.toFixed(1)}°F` : '—')
 
 // Persist map region to localStorage
-const REGION_STORAGE_KEY = 'tideye:map-region'
-
-interface SavedRegion {
-  centerLat: number
-  centerLng: number
-  latDelta: number
-  lngDelta: number
-}
-
-function getSavedRegion(): SavedRegion | null {
-  try {
-    if (!import.meta.client) return null
-    const raw = localStorage.getItem(REGION_STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as SavedRegion) : null
-  } catch {
-    return null
-  }
-}
-
-function saveRegion(region: SavedRegion) {
-  try {
-    if (!import.meta.client) return
-    localStorage.setItem(REGION_STORAGE_KEY, JSON.stringify(region))
-  } catch {
-    /* quota exceeded — ignore */
-  }
-}
-
-function onRegionChange(span: {
-  latDelta: number
-  lngDelta: number
-  centerLat: number
-  centerLng: number
-}) {
-  saveRegion(span)
-}
-
-// Persist map region — read once at mount, written on every pan/zoom
-const savedRegion = import.meta.client ? getSavedRegion() : null
+const { savedRegion, onRegionChange } = useMapRegion()
 
 // Static fallback center — use saved region or current position snapshot, not reactive GPS
 const fallbackCenter = (() => {

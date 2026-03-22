@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { h } from 'vue'
 import WidgetViewSwitcher from '../../shared/WidgetViewSwitcher.vue'
-import WaterTanksClassic from './WaterTanksClassic.vue'
-import WaterTanksRadial from './WaterTanksRadial.vue'
-import WaterTanksBars from './WaterTanksBars.vue'
+import TanksClassicView from '../shared/TanksClassicView.vue'
+import TanksBarsView from '../shared/TanksBarsView.vue'
+import TanksRadialView from '../shared/TanksRadialView.vue'
 import WaterTanksCombined from './WaterTanksCombined.vue'
 
 const props = defineProps<{
@@ -10,7 +11,11 @@ const props = defineProps<{
   maxStates?: number
 }>()
 
-const views = [WaterTanksCombined, WaterTanksBars, WaterTanksClassic, WaterTanksRadial]
+const WaterClassic = () => h(TanksClassicView, { title: 'Fresh Water', tankKey: 'freshWater' })
+const WaterBars = () => h(TanksBarsView, { title: 'Fresh Water', tankKey: 'freshWater' })
+const WaterRadial = () => h(TanksRadialView, { title: 'Fresh Water', tankKey: 'freshWater' })
+
+const views = [WaterTanksCombined, WaterBars, WaterClassic, WaterRadial]
 </script>
 
 <template>

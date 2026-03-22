@@ -7,7 +7,7 @@ defineOptions({ inheritAttrs: false })
 definePageMeta({ keepalive: true })
 
 const config = useRuntimeConfig()
-const appName = config.public.appName || 'Tideye'
+const appName = (config.public.appName as string) || 'TideEye'
 
 const {
   formatRange,
@@ -188,59 +188,34 @@ onMounted(() => {
 
 const toast = useToast()
 
-const pageSeoTitle = computed(() => {
-  const passage = selectedPassage.value
-  if (!passage || !selectedPassageId.value) return `${appName} — Voyages`
-  const seoTitle = selectedHeadlineTitle.value ?? passage.title
-  return `${seoTitle} — ${appName}`
-})
-
-const pageSeoDescription = computed(() => {
-  const passage = selectedPassage.value
-  if (!passage || !selectedPassageId.value) {
-    return 'Sailing voyages from your vessel track history with maps and polylines.'
-  }
-  return `Voyage ${formatRange(passage.startedAt, passage.endedAt)} (${passage.distanceNm.toFixed(0)} nm).`
-})
-
-const pageSchemaName = computed(() => {
-  const passage = selectedPassage.value
-  if (!passage || !selectedPassageId.value) return `${appName} — Voyages`
-  return selectedHeadlineTitle.value ?? passage.title
-})
-
-const pageSchemaDescription = computed(() => {
-  const passage = selectedPassage.value
-  if (!passage || !selectedPassageId.value) {
-    return 'Sailing voyages from your vessel track history with maps and polylines.'
-  }
-  return `Sailing voyage (${passage.distanceNm.toFixed(0)} nautical miles).`
-})
-
-useSeoMeta({
-  title: () => pageSeoTitle.value,
-  description: () => pageSeoDescription.value,
-  ogTitle: () => pageSeoTitle.value,
-  ogDescription: () => pageSeoDescription.value,
-  twitterTitle: () => pageSeoTitle.value,
-  twitterDescription: () => pageSeoDescription.value,
-  twitterCard: 'summary_large_image',
-})
-
-useHead(() => ({
-  script: [
-    {
-      key: 'passages-webpage-schema',
-      type: 'application/ld+json',
-      textContent: JSON.stringify({
-        '@context': 'https://schema.org',
-        '@type': 'WebPage',
-        name: pageSchemaName.value,
-        description: pageSchemaDescription.value,
-      }),
-    },
-  ],
-}))
+watch(
+  [selectedPassage, selectedPassageId, places],
+  () => {
+    const p = selectedPassage.value
+    if (p && selectedPassageId.value) {
+      const seoTitle = selectedHeadlineTitle.value ?? p.title
+      useSeo({
+        title: `${seoTitle} — ${appName}`,
+        description: `Voyage ${formatRange(p.startedAt, p.endedAt)} (${p.distanceNm.toFixed(0)} nm).`,
+        ogImage: {
+          title: seoTitle,
+          description: `${p.distanceNm.toFixed(0)} nm`,
+          icon: 'i-lucide-route',
+        },
+      })
+      useWebPageSchema({
+        name: seoTitle,
+        description: `Sailing voyage (${p.distanceNm.toFixed(0)} nautical miles).`,
+      })
+    } else {
+      usePageSeo(
+        'Voyages',
+        'Sailing voyages from your vessel track history with maps and polylines.',
+      )
+    }
+  },
+  { immediate: true },
+)
 
 function selectPassage(id: string | null) {
   selectedPassageId.value = id

@@ -1,15 +1,8 @@
 <script setup lang="ts">
-const config = useRuntimeConfig()
-const appName = config.public.appName || 'Tideye'
-
-useSeo({
-  title: `${appName} — Marine Telemetry Platform`,
-  description: `${appName} provides real-time vessel monitoring, marine telemetry, and passage planning for your boat.`,
-})
-useWebPageSchema({
-  name: `${appName} — Marine Telemetry Platform`,
-  description: `${appName} provides real-time vessel monitoring, marine telemetry, and passage planning for your boat.`,
-})
+const { appName } = usePageSeo(
+  'Marine Telemetry Platform',
+  'Real-time vessel monitoring, marine telemetry, and passage planning for your boat.',
+)
 
 const features = [
   {

@@ -12,9 +12,6 @@ type CamTabItem = {
   slot: string
 }
 
-const config = useRuntimeConfig()
-const appName = config.public.appName || 'Tideye'
-
 const STORAGE_KEY = 'tideye:cams-tab'
 
 const items: CamTabItem[] = [
@@ -42,14 +39,7 @@ watch(activeTab, (val) => {
   }
 })
 
-useSeo({
-  title: `${appName} — Cameras`,
-  description: 'Live camera streams (WebRTC).',
-})
-useWebPageSchema({
-  name: `${appName} — Cameras`,
-  description: 'Live camera streams (WebRTC).',
-})
+usePageSeo('Cameras', 'Live camera streams (WebRTC).')
 </script>
 
 <template>

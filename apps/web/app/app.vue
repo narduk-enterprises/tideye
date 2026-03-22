@@ -3,29 +3,7 @@
  * Tideye Application Shell
  * Overrides the layer's default app.vue to provide Tideye-specific navigation.
  */
-const route = useRoute()
-
-const navigation = [
-  { label: 'Home', icon: 'i-lucide-home', to: '/' },
-  { label: 'Dashboard', icon: 'i-lucide-gauge', to: '/dashboard' },
-  { label: 'Map', icon: 'i-lucide-map', to: '/map' },
-  { label: 'Switching', icon: 'i-lucide-toggle-right', to: '/switching' },
-  { label: 'Cams', icon: 'i-lucide-video', to: '/cams' },
-  { label: 'Voyages', icon: 'i-lucide-route', to: '/passages' },
-  { label: 'Settings', icon: 'i-lucide-settings', to: '/settings', disabled: true },
-]
-
-function isNavActive(to: string, path: string) {
-  if (to === '/') return path === '/'
-  return path === to || path.startsWith(`${to}/`)
-}
-
-const activeNavigation = computed(() =>
-  navigation.map((item) => ({
-    ...item,
-    active: isNavActive(item.to, route.path),
-  })),
-)
+const { activeNavigation } = useMainNavigation()
 </script>
 
 <template>
