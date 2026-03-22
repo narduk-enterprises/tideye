@@ -6,15 +6,13 @@ import PassagePlaybackWorkspace from '~/components/passages/playback/PassagePlay
 defineOptions({ inheritAttrs: false })
 definePageMeta({ keepalive: true })
 
-const config = useRuntimeConfig()
-const appName = (config.public.appName as string) || 'TideEye'
+usePageSeo('Voyages', 'Sailing voyages from your vessel track history with maps and polylines.')
 
 const {
   formatRange,
   durationDays,
   formatCoord,
   appleMapsUrl,
-  passageDisplayTitle,
   passageRouteHeadline,
   passageCoordSubtext,
 } = usePassageFormat()
@@ -151,13 +149,6 @@ const displayed = computed(() => {
 
 const mapPassages = computed(() => passages.value ?? [])
 
-/** Route + distance for SEO / document title. */
-const selectedHeadlineTitle = computed(() => {
-  const p = selectedPassage.value
-  if (!p || !selectedPassageId.value) return null
-  return passageDisplayTitle(p, places.value)
-})
-
 function rowRouteHeadline(p: PassageDto) {
   return passageRouteHeadline(p, selectedPassageId.value === p.id ? places.value : null)
 }
@@ -190,35 +181,6 @@ onMounted(() => {
 })
 
 const toast = useToast()
-
-watch(
-  [selectedPassage, selectedPassageId, places],
-  () => {
-    const p = selectedPassage.value
-    if (p && selectedPassageId.value) {
-      const seoTitle = selectedHeadlineTitle.value ?? p.title
-      useSeo({
-        title: `${seoTitle} — ${appName}`,
-        description: `Voyage ${formatRange(p.startedAt, p.endedAt)} (${p.distanceNm.toFixed(0)} nm).`,
-        ogImage: {
-          title: seoTitle,
-          description: `${p.distanceNm.toFixed(0)} nm`,
-          icon: 'i-lucide-route',
-        },
-      })
-      useWebPageSchema({
-        name: seoTitle,
-        description: `Sailing voyage (${p.distanceNm.toFixed(0)} nautical miles).`,
-      })
-    } else {
-      usePageSeo(
-        'Voyages',
-        'Sailing voyages from your vessel track history with maps and polylines.',
-      )
-    }
-  },
-  { immediate: true },
-)
 
 function selectPassage(id: string | null) {
   selectedPassageId.value = id

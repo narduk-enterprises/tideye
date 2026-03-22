@@ -61,6 +61,8 @@ export default [
       'app/composables/useViewManager.ts',
       'app/composables/useWidgetManager.ts',
       'app/composables/useMobileFeatures.ts',
+      'app/composables/useSignalK.ts',
+      'app/composables/useSignalKConnectionHealth.ts',
       'app/composables/useSignalKData.ts',
       'app/composables/useTouchWidget.ts',
       'app/config/widgets.ts',
@@ -86,6 +88,7 @@ export default [
       'app/pages/dashboard/index.vue',
       'app/pages/index.vue',
       'app/pages/map/index.vue',
+      'app/pages/passages/index.vue',
       'app/pages/switching/index.vue',
     ],
     rules: {

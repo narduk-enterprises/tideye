@@ -1,13 +1,6 @@
-/**
- * Global SignalK Client Plugin
- *
- * Initializes the SignalK WebSocket connection on app startup so vessel data
- * is available on every page (dashboard, map, passages, etc.) — not just
- * the dashboard.
- */
-import { useSignalKStore } from '~/stores/signalk'
+import { useSignalK } from '~/composables/useSignalK'
 
 export default defineNuxtPlugin(() => {
-  const signalKStore = useSignalKStore()
-  signalKStore.initClient()
+  const { bootstrap } = useSignalK()
+  bootstrap()
 })

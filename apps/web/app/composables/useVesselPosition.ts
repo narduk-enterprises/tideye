@@ -1,4 +1,5 @@
 import { useSignalKData } from '~/composables/useSignalKData'
+import { useSignalKBundle } from '~/composables/useSignalKBundle'
 
 /**
  * useVesselPosition — reactive vessel position, heading, and speed from SignalK.
@@ -7,6 +8,8 @@ import { useSignalKData } from '~/composables/useSignalKData'
  * Speed is converted from m/s to knots.
  */
 export function useVesselPosition() {
+  useSignalKBundle('map-core')
+
   const { getNavigationData } = useSignalKData()
   const nav = getNavigationData()
 

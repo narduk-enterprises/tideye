@@ -1,50 +1,49 @@
-import { storeToRefs } from 'pinia'
-import { useSignalKStore } from '~/stores/signalk'
+import type { Ref } from 'vue'
+import { useSignalK } from '~/composables/useSignalK'
 
 export function useSignalKData() {
-  const signalKStore = useSignalKStore()
-  const { vessel } = storeToRefs(signalKStore)
+  const signalK = useSignalK()
 
-  /** Factory: creates a getter returning a computed over a vessel sub-path. */
-  function accessor<T>(fn: (v: any) => T): () => ComputedRef<T | undefined> {
-    return () => computed(() => (vessel.value ? fn(vessel.value) : undefined))
+  function accessor(slice: Ref<any>, selector: (value: any) => any) {
+    return () => computed(() => (slice.value ? selector(slice.value) : undefined))
   }
 
   return {
-    vessel,
-    getBatteryData: accessor((v) => v.electrical?.batteries?.tideyeBmv),
-    getSolarData: accessor((v) => v.electrical?.solar),
-    getInverterData: accessor((v) => v.electrical?.inverters),
-    getChargerData: accessor((v) => v.electrical?.chargers),
-    getWindData: accessor((v) => v.environment?.wind),
-    getTankData: accessor((v) => ({
-      freshWater: v.tanks?.freshWater,
-      fuel: v.tanks?.fuel,
+    getBatteryData: accessor(signalK.batteries, (value) => value?.tideyeBmv),
+    getSolarData: accessor(signalK.solar, (value) => value),
+    getInverterData: accessor(signalK.inverters, (value) => value),
+    getChargerData: accessor(signalK.chargers, (value) => value),
+    getWindData: accessor(signalK.wind, (value) => value),
+    getTankData: accessor(signalK.tanks, (value) => ({
+      freshWater: value?.freshWater,
+      fuel: value?.fuel,
     })),
-    getWaterTempData: accessor((v) => v.environment?.water?.temperature),
-    getDepthData: accessor((v) => v.environment?.depth),
-    getEntertainmentData: accessor((v) => v.entertainment),
-    getNavigationData: accessor((v) => v.navigation),
-    getSteeringData: accessor((v) => v.steering),
-    getPropulsionData: accessor((v) => v.propulsion),
-    getAirTemperatureData: accessor((v) => ({
-      outside: v.environment?.outside?.temperature,
-      inside: v.environment?.inside?.temperature,
-    })),
-    getBarometricPressureData: accessor((v) => ({
-      outside: v.environment?.outside?.pressure,
-      inside: v.environment?.inside?.pressure,
-    })),
-    getCurrentData: accessor((v) => v.environment?.current),
-    getTideData: accessor((v) => v.environment?.tide),
-    getGNSSData: accessor((v) => v.navigation?.gnss),
-    getAttitudeData: accessor((v) => v.navigation?.attitude),
-    getNotificationsData: accessor((v) => v.notifications),
-    getDesignData: accessor((v) => v.design),
-    getEnvironmentData: accessor((v) => ({
-      outside: v.environment?.outside,
-      inside: v.environment?.inside,
-      weather: v.environment?.weather,
-    })),
+    getWaterTempData: accessor(signalK.water, (value) => value?.temperature),
+    getDepthData: accessor(signalK.depth, (value) => value),
+    getEntertainmentData: accessor(signalK.entertainment, (value) => value),
+    getNavigationData: accessor(signalK.navigation, (value) => value),
+    getSteeringData: accessor(signalK.steering, (value) => value),
+    getPropulsionData: accessor(signalK.propulsion, (value) => value),
+    getAirTemperatureData: () =>
+      computed(() => ({
+        outside: signalK.outside.value?.temperature,
+        inside: signalK.inside.value?.temperature,
+      })),
+    getBarometricPressureData: () =>
+      computed(() => ({
+        outside: signalK.outside.value?.pressure,
+        inside: signalK.inside.value?.pressure,
+      })),
+    getCurrentData: accessor(signalK.current, (value) => value),
+    getTideData: accessor(signalK.tide, (value) => value),
+    getGNSSData: accessor(signalK.navigation, (value) => value?.gnss),
+    getAttitudeData: accessor(signalK.navigation, (value) => value?.attitude),
+    getNotificationsData: accessor(signalK.notifications, (value) => value),
+    getEnvironmentData: () =>
+      computed(() => ({
+        outside: signalK.outside.value,
+        inside: signalK.inside.value,
+        weather: undefined,
+      })),
   }
 }

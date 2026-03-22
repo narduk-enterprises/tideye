@@ -1,14 +1,20 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useSignalKStore } from '~/stores/signalk'
+import { useSignalK } from '~/composables/useSignalK'
 import type { SignalKDelta } from '~/types/signalk/signalk-types'
 
-const signalKStore = useSignalKStore()
-const { vessel } = storeToRefs(signalKStore)
-// Access client directly from store (not exported as ref)
-const getClient = () => {
-  return (signalKStore as any).client?.value || null
+const { subscribeDelta, selfState } = useSignalK()
+
+let unsubscribeDelta: (() => void) | null = null
+
+function attachDeltaListener() {
+  if (unsubscribeDelta) return
+  unsubscribeDelta = subscribeDelta(handleDelta)
+}
+
+function detachDeltaListener() {
+  unsubscribeDelta?.()
+  unsubscribeDelta = null
 }
 
 interface PathData {
@@ -153,14 +159,14 @@ const extractAllPaths = (obj: any, prefix = ''): string[] => {
 }
 
 const scanVesselData = () => {
-  if (!vessel.value) return
+  if (!selfState.value) return
 
-  const paths = extractAllPaths(vessel.value)
+  const paths = extractAllPaths(selfState.value)
   const now = Date.now()
 
   for (const path of paths) {
     const pathParts = path.split('.')
-    let current: any = vessel.value
+    let current: any = selfState.value
 
     for (const part of pathParts) {
       if (current && typeof current === 'object' && part in current) {
@@ -185,7 +191,7 @@ const scanVesselData = () => {
 }
 
 watch(
-  () => vessel.value,
+  () => selfState.value,
   () => {
     if (isVisible.value) {
       scanVesselData()
@@ -197,32 +203,20 @@ watch(
 watch(isVisible, (visible) => {
   if (visible) {
     scanVesselData()
-    const clientInstance = getClient()
-    if (clientInstance) {
-      clientInstance.on('delta', handleDelta)
-    }
+    attachDeltaListener()
   } else {
-    const clientInstance = getClient()
-    if (clientInstance) {
-      clientInstance.off('delta', handleDelta)
-    }
+    detachDeltaListener()
   }
 })
 
 onMounted(() => {
   if (isVisible.value) {
-    const clientInstance = getClient()
-    if (clientInstance) {
-      clientInstance.on('delta', handleDelta)
-    }
+    attachDeltaListener()
   }
 })
 
 onUnmounted(() => {
-  const clientInstance = getClient()
-  if (clientInstance) {
-    clientInstance.off('delta', handleDelta)
-  }
+  detachDeltaListener()
 })
 
 const toggle = () => {

@@ -666,7 +666,6 @@ export function usePassagePlaybackController(
   })
 
   const fullTrackCoordinates = computed(() => {
-    if (cameraMode.value !== 'fit') return []
     return visualTrack.value.map((sample) => [sample.lon, sample.lat] as [number, number])
   })
 

@@ -124,7 +124,7 @@ const props = withDefaults(
     fallbackCenter: () => ({ lat: 30.2672, lng: -97.7431 }),
     isScrollEnabled: true,
     isZoomEnabled: true,
-    isRotationEnabled: true,
+    isRotationEnabled: false,
     texasMask: false,
     preserveRegion: false,
     suppressSelectionZoom: false,
@@ -557,6 +557,10 @@ function initMap() {
     isDark = document.documentElement.classList.contains('dark')
   }
 
+  const excludeAllPoi = !props.showsPointsOfInterest
+    ? mapkit.PointOfInterestFilter?.excludingAllCategories
+    : null
+
   const mapOpts: Record<string, unknown> = {
     center: overviewRegion.center,
     region: overviewRegion,
@@ -565,20 +569,17 @@ function initMap() {
     showsZoomControl: props.isZoomEnabled,
     showsScale: mapkit.FeatureVisibility.Adaptive,
     colorScheme: isDark ? mapkit.Map.ColorSchemes.Dark : mapkit.Map.ColorSchemes.Light,
-    padding: new mapkit.Padding(10, 10, 10, 10),
     isZoomEnabled: props.isZoomEnabled,
     isScrollEnabled: props.isScrollEnabled,
-    isRotationEnabled: props.isRotationEnabled,
-    showsPointsOfInterest: props.showsPointsOfInterest,
     mapType: props.showsPointsOfInterest
       ? mapkit.Map.MapTypes.Standard
       : mapkit.Map.MapTypes.MutedStandard,
   }
 
-  // MutedStandard + showsPointsOfInterest:false can still show some POI glyphs; exclude all categories when POIs are off.
-  const excludeAllPoi = mapkit.PointOfInterestFilter?.excludingAllCategories
-  if (!props.showsPointsOfInterest && excludeAllPoi) {
+  if (excludeAllPoi) {
     mapOpts.pointOfInterestFilter = excludeAllPoi
+  } else {
+    mapOpts.showsPointsOfInterest = props.showsPointsOfInterest
   }
 
   // Register cluster annotation factory when clustering is enabled
@@ -597,12 +598,12 @@ function initMap() {
 
   map = new mapkit.Map(mapContainer.value, mapOpts)
 
-  if (
-    !props.showsPointsOfInterest &&
-    excludeAllPoi &&
-    map.pointOfInterestFilter !== excludeAllPoi
-  ) {
+  if (excludeAllPoi && map.pointOfInterestFilter !== excludeAllPoi) {
     map.pointOfInterestFilter = excludeAllPoi
+  }
+
+  if (props.isRotationEnabled && map.isRotationAvailable) {
+    map.isRotationEnabled = true
   }
 
   // Click on map background (not a pin) clears selection + emits coordinates

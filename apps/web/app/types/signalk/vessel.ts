@@ -80,24 +80,24 @@ export class Vessel implements Partial<SignalKModel> {
   }
 
   updateFromSignalK(delta: SignalKDelta): void {
-    if (delta.updates)
+    if (delta.updates) {
       for (const update of delta.updates) {
-        // Handle meta updates
         if (update.meta) {
-          if (update.meta)
-            for (const { path, value } of update.meta) {
-              this.updateMetaByPath(path as SignalKPath, value)
-            }
-        } else {
+          for (const { path, value } of update.meta) {
+            this.updateMetaByPath(path as SignalKPath, value)
+          }
+        }
+        if (update.values) {
           for (const { path, value } of update.values) {
             this.updateValueByPath(path as SignalKPath, value)
           }
         }
       }
+    }
 
     // Handle inverter updates
-    for (const update of delta.updates) {
-      for (const value of update.values) {
+    for (const update of delta.updates ?? []) {
+      for (const value of update.values ?? []) {
         if (value.path.startsWith('electrical.inverters.')) {
           const [, , inverterId, ...rest] = value.path.split('.')
           if (!this.inverters.has(inverterId)) {
@@ -124,7 +124,15 @@ export class Vessel implements Partial<SignalKModel> {
       current = current[part] as Record<string, unknown>
     }
 
-    current[pathParts[lastIndex]!] = { value }
+    const existing =
+      typeof current[pathParts[lastIndex]!] === 'object' && current[pathParts[lastIndex]!] !== null
+        ? (current[pathParts[lastIndex]!] as Record<string, unknown>)
+        : {}
+
+    current[pathParts[lastIndex]!] = {
+      ...existing,
+      value,
+    }
   }
 
   private updateMetaByPath(path: SignalKPath, meta: unknown): void {

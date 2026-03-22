@@ -67,7 +67,17 @@ export default defineNuxtConfig({
       /** SignalK client connections (local HTTP + public HTTPS/WSS) */
       cspConnectSrc:
         process.env.CSP_CONNECT_SRC ||
-        'http://signalk-local.tideye.com,https://signalk-public.tideye.com,wss://signalk-public.tideye.com,wss://signalk-local.tideye.com',
+        'http://signalk-local.tideye.com,https://signalk-local.tideye.com,wss://signalk-local.tideye.com,https://signalk-public.tideye.com,wss://signalk-public.tideye.com,http://bee.tideye.com:3000,ws://bee.tideye.com:3000',
+      signalKRemoteBaseUrl:
+        process.env.NUXT_PUBLIC_SIGNALK_REMOTE_BASE_URL ||
+        process.env.SIGNALK_BASE_URL ||
+        'https://signalk-public.tideye.com',
+      signalKLocalBaseUrl:
+        process.env.NUXT_PUBLIC_SIGNALK_LOCAL_BASE_URL ||
+        process.env.SIGNALK_FALLBACK_BASE_URL ||
+        'http://signalk-local.tideye.com',
+      signalKDevBaseUrl:
+        process.env.NUXT_PUBLIC_SIGNALK_DEV_BASE_URL || 'http://bee.tideye.com:3000',
       /** Video-stream blob workers */
       cspWorkerSrc: process.env.CSP_WORKER_SRC || 'blob:',
     },

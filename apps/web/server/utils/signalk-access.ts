@@ -1,5 +1,6 @@
 import { SWITCH_MAP } from './empirbus'
 import type { SwitchId } from './empirbus'
+import { resolveSignalKServerBaseUrls } from '~/utils/signalk-endpoints'
 
 export interface SignalKWriteConfig {
   signalKBaseUrl?: string
@@ -352,21 +353,14 @@ async function writePersistedAccessState(state: PersistedAccessState) {
 }
 
 function resolveSignalKWriteBaseUrl(config: SignalKWriteConfig): string {
-  const candidates = [
-    config.signalKWriteBaseUrl,
-    config.signalKBaseUrl,
-    config.signalKFallbackBaseUrl,
-    DEFAULT_WRITE_BASE_URL,
-  ]
-
-  for (const candidate of candidates) {
-    const value = normalizeString(candidate)
-    if (value) {
-      return value.endsWith('/') ? value.slice(0, -1) : value
-    }
-  }
-
-  return DEFAULT_WRITE_BASE_URL
+  return (
+    resolveSignalKServerBaseUrls({
+      writeBaseUrl: normalizeString(config.signalKWriteBaseUrl) || undefined,
+      remoteBaseUrl: normalizeString(config.signalKBaseUrl) || DEFAULT_WRITE_BASE_URL,
+      localBaseUrl: normalizeString(config.signalKFallbackBaseUrl) || undefined,
+      preferLocal: false,
+    })[0] ?? DEFAULT_WRITE_BASE_URL
+  )
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- JSON response shape is dynamic

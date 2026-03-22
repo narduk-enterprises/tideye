@@ -1,47 +1,18 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useSignalKStore } from '~/stores/signalk'
+import { useSignalKConnectionHealth } from '~/composables/useSignalKConnectionHealth'
 
-const signalKStore = useSignalKStore()
-const { vessel } = storeToRefs(signalKStore)
-
-const isConnected = ref(true)
-const lastUpdateTime = ref(Date.now())
-
-// Update lastUpdateTime whenever we receive data
-const watcher = watch(
-  () => vessel.value,
-  () => {
-    const now = Date.now()
-    // Only update if significant time has passed to avoid excessive updates
-    if (now - lastUpdateTime.value > 1000) {
-      lastUpdateTime.value = now
-      isConnected.value = true
-    }
-  },
-  { deep: true },
-)
-
-// Check connection status periodically
-const connectionCheck = setInterval(() => {
-  const timeSinceLastUpdate = Date.now() - lastUpdateTime.value
-  if (timeSinceLastUpdate > 10000) {
-    // Increase to 10 seconds threshold
-    isConnected.value = false
-  }
-}, 5000) // Check less frequently
-
-onBeforeUnmount(() => {
-  clearInterval(connectionCheck)
-  watcher() // Clean up watcher
-})
+const { isConnected, isStale, connectionState } = useSignalKConnectionHealth()
 </script>
 
 <template>
-  <div class="connection-status" :class="{ disconnected: !isConnected }">
+  <div
+    class="connection-status"
+    :class="{ disconnected: !isConnected, stale: isStale && connectionState === 'connected' }"
+  >
     <div class="status-dot"></div>
-    <span class="status-text">{{ isConnected ? 'Connected' : 'Disconnected' }}</span>
+    <span class="status-text">
+      {{ isConnected ? 'Connected' : connectionState === 'idle' ? 'Idle' : connectionState }}
+    </span>
   </div>
 </template>
 
@@ -84,5 +55,10 @@ onBeforeUnmount(() => {
 
 .disconnected {
   background: rgba(244, 67, 54, 0.2);
+}
+
+.stale .status-dot {
+  background: #f59e0b;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
 }
 </style>

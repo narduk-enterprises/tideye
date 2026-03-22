@@ -10,6 +10,7 @@ import {
 import { usePassageFormat } from '~/composables/usePassageFormat'
 import type { PassageDto, PassagePlacesResponse } from '~/types/passage'
 import PassagePlaybackMap from '~/components/passages/playback/PassagePlaybackMap.client.vue'
+import PassagePlaybackRouteOverview from '~/components/passages/playback/PassagePlaybackRouteOverview.client.vue'
 import PassagePlaybackTimeline from '~/components/passages/playback/PassagePlaybackTimeline.vue'
 
 const props = defineProps<{
@@ -36,42 +37,6 @@ const routeHeadline = computed(() => {
   const left = props.places?.start?.name || passage.startPlaceLabel || 'Departure'
   const right = props.places?.end?.name || passage.endPlaceLabel || 'Arrival'
   return `${left} → ${right}`
-})
-
-const environmentCards = computed(() => {
-  const metrics = controller.currentMetrics.value
-  if (!metrics) return []
-
-  const cards: Array<{ label: string; value: string } | null> = [
-    metrics.depth != null ? { label: 'Depth', value: `${metrics.depth.toFixed(1)} m` } : null,
-    metrics.waterTempC != null
-      ? { label: 'Water', value: `${metrics.waterTempC.toFixed(1)}°C` }
-      : null,
-    metrics.airTempC != null ? { label: 'Air', value: `${metrics.airTempC.toFixed(1)}°C` } : null,
-    metrics.windAppSpeedKts != null
-      ? {
-          label: 'AWS / AWA',
-          value: `${metrics.windAppSpeedKts.toFixed(1)} kts · ${metrics.windAppAngleDeg?.toFixed(0) ?? '—'}°`,
-        }
-      : null,
-    metrics.windTrueSpeedKts != null
-      ? {
-          label: 'TWS / TWD',
-          value: `${metrics.windTrueSpeedKts.toFixed(1)} kts · ${metrics.windTrueDirectionDeg?.toFixed(0) ?? '—'}°`,
-        }
-      : null,
-    metrics.portRpm != null || metrics.starboardRpm != null
-      ? {
-          label: 'Engines',
-          value: `${metrics.portRpm?.toFixed(0) ?? '—'} / ${metrics.starboardRpm?.toFixed(0) ?? '—'} rpm`,
-        }
-      : null,
-    metrics.barometerHpa != null
-      ? { label: 'Barometer', value: `${metrics.barometerHpa.toFixed(0)} hPa` }
-      : null,
-  ]
-
-  return cards.filter((card): card is { label: string; value: string } => Boolean(card))
 })
 
 const selectedTrafficTitle = computed(() => {
@@ -358,27 +323,19 @@ const mapHudCards = computed(() => {
           </div>
 
           <div
-            v-if="environmentCards.length || playbackMetrics?.coordLabel"
-            class="pointer-events-none absolute bottom-4 left-4 z-30 hidden max-w-[32rem] xl:block"
+            class="absolute bottom-4 left-4 z-30 hidden w-[19rem] max-w-[calc(100%-2rem)] lg:block"
           >
-            <div class="flex max-w-[30rem] flex-wrap gap-2">
-              <div
-                v-for="card in environmentCards.slice(0, 4)"
-                :key="card.label"
-                class="flex w-[12.25rem] items-center justify-between rounded-full border border-white/78 bg-white/80 px-3 py-1.5 text-[11px] shadow-[0_10px_24px_rgba(15,23,42,0.08)] backdrop-blur"
-              >
-                <span class="truncate pr-2 font-medium text-slate-500">{{ card.label }}</span>
-                <span class="shrink-0 whitespace-nowrap font-semibold tabular-nums text-slate-950">
-                  {{ card.value }}
-                </span>
-              </div>
-              <div
-                v-if="playbackMetrics?.coordLabel"
-                class="w-[14rem] rounded-full border border-white/78 bg-white/80 px-3 py-1.5 text-[11px] font-medium tracking-[0.04em] text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.08)] backdrop-blur"
-              >
-                {{ playbackMetrics.coordLabel }}
-              </div>
-            </div>
+            <PassagePlaybackRouteOverview
+              :track-geojson-raw="passage?.trackGeojson ?? null"
+              :route-coordinates="controller.fullTrackCoordinates.value"
+              :start-lat="bundle.startLat"
+              :start-lon="bundle.startLon"
+              :end-lat="bundle.endLat"
+              :end-lon="bundle.endLon"
+              :current-lat="playbackMetrics?.lat ?? null"
+              :current-lon="playbackMetrics?.lon ?? null"
+              @focus-route="controller.cameraMode.value = 'fit'"
+            />
           </div>
         </div>
 

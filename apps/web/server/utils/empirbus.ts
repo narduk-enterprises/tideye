@@ -1,4 +1,5 @@
 import { createSocket } from 'node:dgram'
+import { normalizeBaseUrl, resolveSignalKServerBaseUrls } from '~/utils/signalk-endpoints'
 
 export interface SwitchDef {
   label: string
@@ -163,7 +164,7 @@ async function fetchSignalKSwitchTree(config: SignalKSwitchConfig) {
   for (const baseUrl of getSignalKBaseUrls(config)) {
     try {
       const response = await fetchWithTimeout(
-        `${normaliseBaseUrl(baseUrl)}${SIGNALK_LEOPARD_SWITCHES_PATH}`,
+        `${normalizeBaseUrl(baseUrl)}${SIGNALK_LEOPARD_SWITCHES_PATH}`,
         2500,
       )
 
@@ -182,12 +183,11 @@ async function fetchSignalKSwitchTree(config: SignalKSwitchConfig) {
 }
 
 function getSignalKBaseUrls(config: SignalKSwitchConfig): string[] {
-  const candidates = [
-    config.signalKBaseUrl || DEFAULT_SIGNALK_BASE_URL,
-    config.signalKFallbackBaseUrl || DEFAULT_SIGNALK_FALLBACK_BASE_URL,
-  ]
-
-  return [...new Set(candidates.map((candidate) => candidate.trim()).filter(Boolean))]
+  return resolveSignalKServerBaseUrls({
+    remoteBaseUrl: config.signalKBaseUrl || DEFAULT_SIGNALK_BASE_URL,
+    localBaseUrl: config.signalKFallbackBaseUrl || DEFAULT_SIGNALK_FALLBACK_BASE_URL,
+    preferLocal: false,
+  })
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SignalK response node shape is dynamic
@@ -220,10 +220,6 @@ function toUiState(value: unknown): UiState {
     return 'off'
   }
   return 'unknown'
-}
-
-function normaliseBaseUrl(baseUrl: string): string {
-  return baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
 }
 
 async function fetchWithTimeout(url: string, timeoutMs: number) {

@@ -1,4 +1,5 @@
-import { useSignalKStore } from '~/stores/signalk'
+import { useSignalK } from '~/composables/useSignalK'
+import { useSignalKBundle } from '~/composables/useSignalKBundle'
 import { useVesselPosition } from '~/composables/useVesselPosition'
 import type { AISVessel } from '~/types/map'
 
@@ -495,15 +496,20 @@ function saveMapPrefs(prefs: MapOverlayPrefs) {
 }
 
 export function useAISOverlay() {
-  const store = useSignalKStore()
+  const sk = useSignalK()
   const { lat, lng } = useVesselPosition()
+  const overlayActive = ref(false)
 
   // ── Toggle State ──
   const showOtherVessels = computed({
-    get: () => store.showOtherVessels,
+    get: () => sk.showOtherVessels.value,
     set: (v: boolean) => {
-      store.showOtherVessels = v
+      sk.showOtherVessels.value = v
     },
+  })
+
+  useSignalKBundle('ais', {
+    enabled: computed(() => overlayActive.value && showOtherVessels.value),
   })
 
   const showVectors = ref(false)
@@ -547,9 +553,9 @@ export function useAISOverlay() {
 
   /** Per-category badge counts for the filter panel. */
   const typeCounts = computed(() => {
-    if (!store.showOtherVessels) return {} as Record<ShipCategoryKey, number>
+    if (!sk.showOtherVessels.value) return {} as Record<ShipCategoryKey, number>
     const counts: Partial<Record<ShipCategoryKey, number>> = {}
-    for (const v of store.otherVesselsList) {
+    for (const v of sk.otherVesselsList.value) {
       if (v.lat == null) continue
       const key = getShipCategoryKey(v.shipType, v.sog)
       counts[key] = (counts[key] ?? 0) + 1
@@ -561,7 +567,7 @@ export function useAISOverlay() {
   // (server renders buttons with defaults; client must match until mounted)
   onMounted(() => {
     const saved = loadMapPrefs()
-    store.showOtherVessels = saved.ais
+    sk.showOtherVessels.value = saved.ais
     showVectors.value = saved.vectors
     showLabels.value = saved.labels
     for (const id of saved.vesselVectors) perVesselVectors.add(id)
@@ -572,8 +578,8 @@ export function useAISOverlay() {
   const perVesselVectors = reactive(new Set<string>())
 
   const aisCount = computed(() =>
-    store.showOtherVessels
-      ? store.otherVesselsList.filter((v) => v.lat != null && passesTypeFilter(v)).length
+    sk.showOtherVessels.value
+      ? sk.otherVesselsList.value.filter((v) => v.lat != null && passesTypeFilter(v)).length
       : 0,
   )
 
@@ -622,9 +628,9 @@ export function useAISOverlay() {
 
   function refreshCPA() {
     dangerousVesselIds.clear()
-    if (!store.showOtherVessels || lat.value == null || lng.value == null) return
+    if (!sk.showOtherVessels.value || lat.value == null || lng.value == null) return
 
-    for (const v of store.otherVesselsList) {
+    for (const v of sk.otherVesselsList.value) {
       if (!passesTypeFilter(v)) continue
       const result = computeCPA(v)
       if (result && result.cpa < CPA_WARNING_NM && result.tcpa < CPA_WARNING_MIN) {
@@ -714,7 +720,7 @@ export function useAISOverlay() {
   function centerOnVessel(vesselId: string) {
     const map = getMap()
     if (!map) return
-    const v = store.otherVesselsList.find((x) => x.id === vesselId)
+    const v = sk.otherVesselsList.value.find((x) => x.id === vesselId)
     if (!v || v.lat == null || v.lng == null) return
     centerOnCoord(map, v.lat, v.lng)
     const ann = aisAnnotations.get(vesselId)
@@ -729,7 +735,7 @@ export function useAISOverlay() {
 
   function _saveCurrentPrefs() {
     saveMapPrefs({
-      ais: store.showOtherVessels,
+      ais: sk.showOtherVessels.value,
       vectors: showVectors.value,
       labels: showLabels.value,
       vesselVectors: [...perVesselVectors],
@@ -787,10 +793,10 @@ export function useAISOverlay() {
       vectorOverlays.delete(id)
     }
 
-    if (!store.showOtherVessels) return
+    if (!sk.showOtherVessels.value) return
 
     // Recreate vectors for vessels that should have them
-    for (const v of store.otherVesselsList) {
+    for (const v of sk.otherVesselsList.value) {
       if (!isVectorEnabled(v.id)) continue
       const overlay = createVectorOverlay(v, map)
       if (overlay) vectorOverlays.set(v.id, overlay)
@@ -850,7 +856,7 @@ export function useAISOverlay() {
         callout: {
           calloutElementForAnnotation: (annotation: { data?: { vesselId?: string } }) => {
             const id = annotation.data?.vesselId ?? v.id
-            const fresh = store.otherVesselsList.find((x) => x.id === id)
+            const fresh = sk.otherVesselsList.value.find((x) => x.id === id)
             if (!fresh) return document.createElement('div')
             const root = buildCalloutElement(
               fresh,
@@ -901,7 +907,7 @@ export function useAISOverlay() {
     const map = getMap()
     if (!map) return
 
-    if (!store.showOtherVessels) {
+    if (!sk.showOtherVessels.value) {
       for (const ann of aisAnnotations.values()) map.removeAnnotation(ann)
       for (const overlay of vectorOverlays.values()) map.removeOverlay(overlay)
       aisAnnotations.clear()
@@ -911,7 +917,7 @@ export function useAISOverlay() {
       return
     }
 
-    const currentVessels = store.otherVesselsList.filter(
+    const currentVessels = sk.otherVesselsList.value.filter(
       (v) => v.lat != null && v.lng != null && passesTypeFilter(v),
     )
     const currentIds = new Set(currentVessels.map((v) => v.id))
@@ -989,12 +995,12 @@ export function useAISOverlay() {
     for (const [, overlay] of trailOverlays) map.removeOverlay(overlay)
     trailOverlays.clear()
 
-    if (!showTrails.value || !store.showOtherVessels) return
+    if (!showTrails.value || !sk.showOtherVessels.value) return
 
     for (const [id, history] of vesselTrailHistory) {
       if (history.length < 2) continue
-      if (!passesTypeFilter(store.otherVesselsList.find((v) => v.id === id)!)) continue
-      const v = store.otherVesselsList.find((x) => x.id === id)
+      if (!passesTypeFilter(sk.otherVesselsList.value.find((v) => v.id === id)!)) continue
+      const v = sk.otherVesselsList.value.find((x) => x.id === id)
       if (!v) continue
 
       const cat = getShipCategory(v.shipType, v.sog)
@@ -1014,6 +1020,7 @@ export function useAISOverlay() {
   // ── Lifecycle ──
 
   function start() {
+    overlayActive.value = true
     const map = getMap()
     // Clear any orphaned overlays from prior HMR cycles
     if (map && map.overlays?.length) {
@@ -1029,6 +1036,7 @@ export function useAISOverlay() {
   }
 
   function stop() {
+    overlayActive.value = false
     if (refreshTimer) {
       clearInterval(refreshTimer)
       refreshTimer = null
@@ -1053,7 +1061,7 @@ export function useAISOverlay() {
 
   // React to toggle changes + persist to localStorage
   watch(
-    () => store.showOtherVessels,
+    () => sk.showOtherVessels.value,
     () => {
       _saveCurrentPrefs()
       refreshAIS()

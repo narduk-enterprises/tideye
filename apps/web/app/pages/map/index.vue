@@ -4,7 +4,7 @@ import { useVesselPosition } from '~/composables/useVesselPosition'
 import { useMapVessels } from '~/composables/useMapVessels'
 import { useAISOverlay, CATEGORIES, FILTERABLE_CATEGORIES } from '~/composables/useAISOverlay'
 import { useMapFeatures } from '~/composables/useMapFeatures'
-import { useSignalKStore } from '~/stores/signalk'
+import { useSignalK } from '~/composables/useSignalK'
 import type { MapVesselItem } from '~/types/map'
 
 definePageMeta({ keepalive: true })
@@ -36,7 +36,7 @@ const {
 
 // Vessel list sidebar
 const showVesselList = ref(false)
-const signalKStore = useSignalKStore()
+const { otherVesselsList } = useSignalK()
 
 // Map features — range rings, heading line, anchor watch, waypoints, measurement, etc.
 const {
@@ -230,7 +230,6 @@ onUnmounted(() => {
         :annotation-size="{ width: 40, height: 40 }"
         :zoom-span="{ lat: 0.01, lng: 0.012 }"
         :bounding-padding="0.2"
-        :is-rotation-enabled="true"
         :shows-points-of-interest="true"
         :preserve-region="true"
         @region-change="onRegionChange"
@@ -527,7 +526,7 @@ onUnmounted(() => {
     <Transition name="sidebar-slide">
       <MapVesselList
         v-if="showVesselList && showOtherVessels"
-        :vessels="signalKStore.otherVesselsList"
+        :vessels="otherVesselsList"
         :self-lat="lat"
         :self-lng="lng"
         @close="showVesselList = false"

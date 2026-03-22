@@ -7,8 +7,10 @@ import { DEFAULT_VIEWS } from '~/config/views'
 import { useWidgetManager } from '~/composables/useWidgetManager'
 import { useViewManager } from '~/composables/useViewManager'
 import { useMobileFeatures } from '~/composables/useMobileFeatures'
+import { useSignalKBundle } from '~/composables/useSignalKBundle'
 import type { BaseWidget } from '~/types/widgets'
-// SignalK connection is initialized globally by plugins/signalk.client.ts
+
+useSignalKBundle('dashboard')
 
 // View manager
 const viewManager = useViewManager(WIDGET_REGISTRY, DEFAULT_VIEWS)

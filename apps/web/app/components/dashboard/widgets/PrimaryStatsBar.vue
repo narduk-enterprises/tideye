@@ -1,70 +1,73 @@
 <script setup lang="ts">
-import { useSignalKData } from '~/composables/useSignalKData'
+import { useSignalK } from '~/composables/useSignalK'
 import { formatDuration } from '~/utils/timeFormatting'
 import { computed } from 'vue'
 
-const { vessel } = useSignalKData()
+const signalK = useSignalK()
 
 // Battery computations
 const batteryLevel = computed(() => {
-  const level = vessel.value?.electrical?.batteries?.tideyeBmv?.capacity?.stateOfCharge?.value
+  const level = signalK.batteries.value?.tideyeBmv?.capacity?.stateOfCharge?.value
   return level ? (level * 100).toFixed(1) : '0.0'
 })
 
 const batteryVoltage = computed(() => {
-  const voltage = vessel.value?.electrical?.batteries?.tideyeBmv?.voltage?.value
+  const voltage = signalK.batteries.value?.tideyeBmv?.voltage?.value
   return voltage ? voltage.toFixed(1) : '0.0'
 })
 
 const batteryCurrent = computed(() => {
-  const current = vessel.value?.electrical?.batteries?.tideyeBmv?.current?.value
+  const current = signalK.batteries.value?.tideyeBmv?.current?.value
   return current ? Math.abs(current).toFixed(0) : '0'
 })
 
 const timeRemaining = computed(() => {
-  const time = vessel.value?.electrical?.batteries?.tideyeBmv?.capacity?.timeRemaining?.value
+  const time = signalK.batteries.value?.tideyeBmv?.capacity?.timeRemaining?.value
   return formatDuration(time)
 })
 
 // Wind computation
 const windSpeed = computed(() => {
-  const speed = vessel.value?.environment?.wind?.speedTrue?.value
+  const speed = signalK.wind.value?.speedTrue?.value
   return speed ? (speed * 1.94384).toFixed(1) : '0.0'
 })
 
 // Tank Levels
+const freshWaterTanks = computed(() => signalK.tanks.value?.freshWater as any[] | undefined)
+const fuelTanks = computed(() => signalK.tanks.value?.fuel as any[] | undefined)
+
 const tankLevels = computed(() => ({
-  portWater: (vessel.value?.tanks?.freshWater?.[0]?.currentLevel?.value || 0) * 100,
-  starboardWater: (vessel.value?.tanks?.freshWater?.[1]?.currentLevel?.value || 0) * 100,
-  portFuel: (vessel.value?.tanks?.fuel?.[0]?.currentLevel?.value || 0) * 100,
-  starboardFuel: (vessel.value?.tanks?.fuel?.[1]?.currentLevel?.value || 0) * 100,
+  portWater: (freshWaterTanks.value?.[0]?.currentLevel?.value || 0) * 100,
+  starboardWater: (freshWaterTanks.value?.[1]?.currentLevel?.value || 0) * 100,
+  portFuel: (fuelTanks.value?.[0]?.currentLevel?.value || 0) * 100,
+  starboardFuel: (fuelTanks.value?.[1]?.currentLevel?.value || 0) * 100,
 }))
 
 // Depth and Temperature
 const depth = computed(() => {
-  const d = vessel.value?.environment?.depth?.belowTransducer?.value
+  const d = signalK.depth.value?.belowTransducer?.value
   return d ? (d * 3.28084).toFixed(1) : '0.0'
 })
 
 const waterTemp = computed(() => {
-  const temp = vessel.value?.environment?.water?.temperature?.value
+  const temp = signalK.water.value?.temperature?.value
   return temp ? (((temp - 273.15) * 9) / 5 + 32).toFixed(1) : '0.0'
 })
 
 // Position computations
 const latitude = computed(() => {
-  const lat = vessel.value?.navigation?.position?.value?.latitude
+  const lat = signalK.navigation.value?.position?.value?.latitude
   return lat ? lat.toFixed(4) : '0.0000'
 })
 
 const longitude = computed(() => {
-  const lon = vessel.value?.navigation?.position?.value?.longitude
+  const lon = signalK.navigation.value?.position?.value?.longitude
   return lon ? Math.abs(lon).toFixed(4) : '0.0000'
 })
 
 // Entertainment computations
 const nowPlaying = computed(() => {
-  const track = vessel.value?.entertainment?.device?.fusion1?.avsource?.source11?.track
+  const track = signalK.entertainment.value?.device?.fusion1?.avsource?.source11?.track
   return {
     title: track?.name?.value || '',
     artist: track?.artistName?.value || '',

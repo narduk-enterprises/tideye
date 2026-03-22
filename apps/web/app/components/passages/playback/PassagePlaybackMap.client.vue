@@ -40,7 +40,6 @@ const colorMode = useColorMode() as { value: string }
 const mapContainer = ref<HTMLElement | null>(null)
 
 let map: any | null = null
-let routeOverlay: any | null = null
 let completedOverlay: any | null = null
 let wakeOverlay: any | null = null
 let selfAnnotation: any | null = null
@@ -221,10 +220,9 @@ function updateMarkerVisual(
 
 function clearOverlays() {
   if (!map) return
-  for (const overlay of [routeOverlay, completedOverlay, wakeOverlay]) {
+  for (const overlay of [completedOverlay, wakeOverlay]) {
     if (overlay) map.removeOverlay(overlay)
   }
-  routeOverlay = null
   completedOverlay = null
   wakeOverlay = null
 }
@@ -232,11 +230,10 @@ function clearOverlays() {
 function rebuildRouteOverlays() {
   if (!map) return
 
-  for (const overlay of [routeOverlay, completedOverlay, wakeOverlay]) {
+  for (const overlay of [completedOverlay, wakeOverlay]) {
     if (overlay) map.removeOverlay(overlay)
   }
 
-  routeOverlay = null
   completedOverlay = null
   wakeOverlay = null
 
@@ -434,7 +431,6 @@ function initMap() {
   map = new mapkit.Map(mapContainer.value, {
     isScrollEnabled: true,
     isZoomEnabled: true,
-    isRotationEnabled: true,
     showsCompass: mapkit.FeatureVisibility.Hidden,
     showsScale: mapkit.FeatureVisibility.Adaptive,
     colorScheme:

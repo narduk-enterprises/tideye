@@ -6,7 +6,9 @@ declare module '@signalk/client' {
     removeAllListeners(): void
     cleanupListeners(): void
     subscribe(subscription: Subscription): void
+    unsubscribe(): void
     on(event: string, callback: (data: SignalKDelta) => void): void
+    off(event: string, callback: (data: SignalKDelta) => void): void
     API<T>(): Promise<API<T>>
   }
   export interface ClientOptions {

@@ -10,4 +10,10 @@ declare module 'nuxt/schema' {
     signalKWriteClientId: string
     signalKWriteToken: string
   }
+
+  interface PublicRuntimeConfig {
+    signalKRemoteBaseUrl: string
+    signalKLocalBaseUrl: string
+    signalKDevBaseUrl: string
+  }
 }

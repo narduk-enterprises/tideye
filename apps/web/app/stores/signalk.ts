@@ -1,42 +1,145 @@
 import { defineStore } from 'pinia'
-import type { UnitPreferences } from '~/utils/unitConversions'
 import type { AISVessel } from '~/types/map'
-import { CircularBuffer } from '~/utils/CircularBuffer'
+import type { SignalKDelta, SignalKModel } from '~/types/signalk/signalk-types'
+import type { UnitPreferences } from '~/utils/unitConversions'
 import {
   AIS_FLUSH_INTERVAL_MS,
-  AIS_SUBSCRIPTIONS,
-  BUFFER_SIZE,
-  LOCAL_CHECK_INTERVAL,
-  LOCAL_SERVER,
-  SELF_SUBSCRIPTIONS,
-  STALE_VESSEL_TIMEOUT,
-  UPDATE_INTERVAL,
+  CONNECT_TIMEOUT_MS,
+  DELTA_UPDATE_INTERVAL_MS,
+  ENDPOINT_PROBE_TIMEOUT_MS,
+  IDLE_DISCONNECT_DELAY_MS,
+  LOCAL_UPGRADE_CHECK_INTERVAL_MS,
+  RECONNECT_DELAY_MS,
+  STALE_AIS_TIMEOUT_MS,
 } from '~/config/signalk'
+import {
+  buildSignalKSubscriptionCommands,
+  createEmptySignalKBundleCounts,
+  createSignalKBundleManager,
+  type SignalKBundleKey,
+} from '~/utils/signalk-bundles'
+import {
+  cloneSignalKSlice,
+  collectTouchedSelfSlices,
+  filterSignalKDelta,
+  type SignalKSelfSliceKey,
+} from '~/utils/signalk-delta'
+import {
+  resolveSignalKClientEndpoints,
+  type SignalKConnectionEndpointKind,
+  type SignalKEndpoint,
+} from '~/utils/signalk-endpoints'
+import {
+  transitionSignalKTransportState,
+  type SignalKConnectionEvent,
+  type SignalKTransportState,
+} from '~/utils/signalk-state'
+
+type Present<T> = Exclude<T, null | undefined>
+type EnvironmentState = Present<SignalKModel['environment']>
+type ElectricalState = Present<SignalKModel['electrical']>
+
+export interface SignalKSelfState {
+  navigation: Present<SignalKModel['navigation']> | null
+  wind: Present<EnvironmentState['wind']> | null
+  depth: Present<EnvironmentState['depth']> | null
+  water: Present<EnvironmentState['water']> | null
+  outside: Present<EnvironmentState['outside']> | null
+  inside: Present<EnvironmentState['inside']> | null
+  current: Present<EnvironmentState['current']> | null
+  tide: Present<EnvironmentState['tide']> | null
+  steering: Present<SignalKModel['steering']> | null
+  propulsion: Present<SignalKModel['propulsion']> | null
+  batteries: Present<ElectricalState['batteries']> | null
+  solar: Present<ElectricalState['solar']> | null
+  inverters: Present<ElectricalState['inverters']> | null
+  chargers: Present<ElectricalState['chargers']> | null
+  tanks: Present<SignalKModel['tanks']> | null
+  notifications: Present<SignalKModel['notifications']> | null
+  entertainment: Present<SignalKModel['entertainment']> | null
+}
+
+const DEFAULT_UNIT_PREFERENCES: UnitPreferences = {
+  length: 'ft',
+  speed: 'knot',
+  temperature: 'F',
+  pressure: 'kPa',
+  angle: 'deg',
+  volume: 'gal',
+  mass: 'lb',
+}
+
+const INITIAL_TRANSPORT_STATE: SignalKTransportState = {
+  connectionState: 'idle',
+  activeEndpointKind: 'none',
+  lastError: null,
+}
 
 export const useSignalKStore = defineStore('signalk', () => {
-  const client = shallowRef<any>(null)
+  const runtimeConfig = useRuntimeConfig()
 
+  const client = shallowRef<any>(null)
   const api = shallowRef<any>(null)
 
-  const vessel = shallowRef<any>(null)
+  const transport = shallowRef<SignalKTransportState>({ ...INITIAL_TRANSPORT_STATE })
+  const connectionState = computed(() => transport.value.connectionState)
+  const activeEndpointKind = computed(() => transport.value.activeEndpointKind)
+  const lastError = computed(() => transport.value.lastError)
+  const lastDeltaAt = ref<number | null>(null)
+  const activeSignalKBaseUrl = ref<string | null>(null)
 
-  const otherVessels = ref<Map<string, AISVessel>>(new Map())
-  const showOtherVessels = ref(false)
+  const navigation = shallowRef<SignalKSelfState['navigation']>(null)
+  const wind = shallowRef<SignalKSelfState['wind']>(null)
+  const depth = shallowRef<SignalKSelfState['depth']>(null)
+  const water = shallowRef<SignalKSelfState['water']>(null)
+  const outside = shallowRef<SignalKSelfState['outside']>(null)
+  const inside = shallowRef<SignalKSelfState['inside']>(null)
+  const current = shallowRef<SignalKSelfState['current']>(null)
+  const tide = shallowRef<SignalKSelfState['tide']>(null)
+  const steering = shallowRef<SignalKSelfState['steering']>(null)
+  const propulsion = shallowRef<SignalKSelfState['propulsion']>(null)
+  const batteries = shallowRef<SignalKSelfState['batteries']>(null)
+  const solar = shallowRef<SignalKSelfState['solar']>(null)
+  const inverters = shallowRef<SignalKSelfState['inverters']>(null)
+  const chargers = shallowRef<SignalKSelfState['chargers']>(null)
+  const tanks = shallowRef<SignalKSelfState['tanks']>(null)
+  const notifications = shallowRef<SignalKSelfState['notifications']>(null)
+  const entertainment = shallowRef<SignalKSelfState['entertainment']>(null)
 
-  /** Flat array of AIS vessels for rendering on the map */
+  const selfState = computed<SignalKModel>(() => ({
+    navigation: navigation.value ?? undefined,
+    environment: {
+      wind: wind.value ?? undefined,
+      depth: depth.value ?? undefined,
+      water: water.value ?? undefined,
+      outside: outside.value ?? undefined,
+      inside: inside.value ?? undefined,
+      current: current.value ?? undefined,
+      tide: tide.value ?? undefined,
+    },
+    steering: steering.value ?? undefined,
+    propulsion: propulsion.value ?? undefined,
+    electrical: {
+      batteries: batteries.value ?? undefined,
+      solar: solar.value ?? undefined,
+      inverters: inverters.value ?? undefined,
+      chargers: chargers.value ?? undefined,
+    },
+    tanks: tanks.value ?? undefined,
+    notifications: notifications.value ?? undefined,
+    entertainment: entertainment.value ?? undefined,
+  }))
+
+  const otherVessels = shallowRef<Map<string, AISVessel>>(new Map())
   const otherVesselsList = computed(() => Array.from(otherVessels.value.values()))
+  const showOtherVessels = ref(false)
+  const totalUpdates = ref(0)
+  const unitPreferences = ref<UnitPreferences>({ ...DEFAULT_UNIT_PREFERENCES })
+  const bundleCounts = shallowRef(createEmptySignalKBundleCounts())
 
-  // ── AIS Update Throttling ──────────────────────────────────
-  // Accumulate AIS deltas in a plain (non-reactive) Map, then flush
-  // to the reactive ref every AIS_FLUSH_INTERVAL_MS. This reduces Vue
-  // reactivity triggers from ~380/s to ~0.5/s.
-  const _aisPending = new Map<string, AISVessel>() // non-reactive buffer
-  let _aisFlushInterval: ReturnType<typeof setInterval> | null = null
-
-  /**
-   * Metadata cache populated by fetchAISNames() REST call.
-   * Used by updateOtherVessel() to populate name/shipType on first delta.
-   */
+  const deltaListeners = new Set<(delta: SignalKDelta) => void>()
+  const pathDebounces = new Map<string, number>()
+  const _aisPending = new Map<string, AISVessel>()
   const _aisMetadataCache = new Map<
     string,
     {
@@ -50,127 +153,208 @@ export const useSignalKStore = defineStore('signalk', () => {
     }
   >()
 
-  function _flushAIS() {
-    if (_aisPending.size === 0) return
-    const merged = new Map(otherVessels.value)
-    for (const [id, v] of _aisPending) {
-      merged.set(id, v)
-    }
-    otherVessels.value = merged
-    _aisPending.clear()
-  }
-
-  function _startAISFlush() {
-    if (_aisFlushInterval) return
-    _aisFlushInterval = setInterval(_flushAIS, AIS_FLUSH_INTERVAL_MS)
-  }
-
-  // Stale vessel cleanup interval
-  let staleCleanupInterval: ReturnType<typeof setInterval> | null = null
-
-  const windSpeedsBuffer = new CircularBuffer<number>(BUFFER_SIZE)
-  const timesBuffer = new CircularBuffer<Date>(BUFFER_SIZE)
-
-  const windSpeeds = computed(() => windSpeedsBuffer.getAll())
-  const times = computed(() => timesBuffer.getAll())
-
-  const totalUpdates = ref<number>(0)
-  const unitPreferences = ref<UnitPreferences>({
-    length: 'ft',
-    speed: 'knot',
-    temperature: 'F',
-    pressure: 'kPa',
-    angle: 'deg',
-    volume: 'gal',
-    mass: 'lb',
-  })
-
-  const windSpeed = computed(() => {
-    const speeds = windSpeeds.value
-    return speeds.length > 0 ? speeds.at(-1) : 0
-  })
-
-  const lastUpdateTime = ref<number>(0)
-  const pathDebounces = new Map<string, number>()
-
-  const isLocalSignalK = ref(false)
-  const activeSignalKBaseUrl = ref('https://signalk-public.tideye.com')
-
-  type SignalKEndpointKind = 'dev' | 'local' | 'remote'
-
-  interface SignalKEndpoint {
-    kind: SignalKEndpointKind
-    label: string
-    hostname: string
-    port: number
-    useTLS: boolean
-    baseUrl: string
-  }
-
-  // SignalK server endpoints
-  const DEV_SERVER = 'http://bee.tideye.com:3000'
-  const LOCAL_HTTP_SERVER = 'http://signalk-local.tideye.com'
-  const LOCAL_HTTPS_SERVER = 'https://signalk-local.tideye.com'
-  const REMOTE_SERVER = 'https://signalk-public.tideye.com'
-  const CONNECT_TIMEOUT_MS = 6_000
-  const RECONNECT_DELAY_MS = 5_000
-
-  let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
+  let selfModel: any = null
+  let wiredSignalKClient: any = null
   let initInFlight: Promise<void> | null = null
+  let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
+  let staleCleanupInterval: ReturnType<typeof setInterval> | null = null
+  let aisFlushInterval: ReturnType<typeof setInterval> | null = null
+  let localUpgradeInterval: ReturnType<typeof setInterval> | null = null
   let allowReconnect = false
-  let localCheckInterval: ReturnType<typeof setInterval> | null = null
+  let appliedSubscriptionSignature = ''
+  let aisNamesLoadedForConnection = false
 
-  function getSignalKEndpoints(): SignalKEndpoint[] {
-    if (import.meta.dev) {
-      return [
-        {
-          kind: 'dev',
-          label: 'dev',
-          hostname: 'bee.tideye.com',
-          port: 3000,
-          useTLS: false,
-          baseUrl: DEV_SERVER,
-        },
-      ]
-    }
+  const bundleManager = createSignalKBundleManager({
+    idleDisconnectMs: IDLE_DISCONNECT_DELAY_MS,
+    onFirstAcquire: () => {
+      allowReconnect = true
+      void ensureConnected()
+    },
+    onIdleDisconnect: () => {
+      void disconnectToIdle()
+    },
+  })
 
-    const localEndpoint: SignalKEndpoint =
-      window.location.protocol === 'https:'
-        ? {
-            kind: 'local',
-            label: 'local',
-            hostname: 'signalk-local.tideye.com',
-            port: 443,
-            useTLS: true,
-            baseUrl: LOCAL_HTTPS_SERVER,
-          }
-        : {
-            kind: 'local',
-            label: 'local',
-            hostname: 'signalk-local.tideye.com',
-            port: 80,
-            useTLS: false,
-            baseUrl: LOCAL_HTTP_SERVER,
-          }
-
-    return [
-      localEndpoint,
-      {
-        kind: 'remote',
-        label: 'internet',
-        hostname: 'signalk-public.tideye.com',
-        port: 443,
-        useTLS: true,
-        baseUrl: REMOTE_SERVER,
-      },
-    ]
+  function updateTransport(
+    event: SignalKConnectionEvent,
+    payload: {
+      endpointKind?: SignalKConnectionEndpointKind
+      error?: string | null
+    } = {},
+  ) {
+    transport.value = transitionSignalKTransportState(transport.value, event, payload)
   }
 
-  async function isLocalServerAvailable() {
+  function syncBundleCounts() {
+    bundleCounts.value = bundleManager.snapshotCounts()
+  }
+
+  function clearSelfSlices() {
+    navigation.value = null
+    wind.value = null
+    depth.value = null
+    water.value = null
+    outside.value = null
+    inside.value = null
+    current.value = null
+    tide.value = null
+    steering.value = null
+    propulsion.value = null
+    batteries.value = null
+    solar.value = null
+    inverters.value = null
+    chargers.value = null
+    tanks.value = null
+    notifications.value = null
+    entertainment.value = null
+  }
+
+  function readSelfSlice(sliceKey: SignalKSelfSliceKey) {
+    switch (sliceKey) {
+      case 'navigation':
+        return selfModel?.navigation ?? null
+      case 'wind':
+        return selfModel?.environment?.wind ?? null
+      case 'depth':
+        return selfModel?.environment?.depth ?? null
+      case 'water':
+        return selfModel?.environment?.water ?? null
+      case 'outside':
+        return selfModel?.environment?.outside ?? null
+      case 'inside':
+        return selfModel?.environment?.inside ?? null
+      case 'current':
+        return selfModel?.environment?.current ?? null
+      case 'tide':
+        return selfModel?.environment?.tide ?? null
+      case 'steering':
+        return selfModel?.steering ?? null
+      case 'propulsion':
+        return selfModel?.propulsion ?? null
+      case 'batteries':
+        return selfModel?.electrical?.batteries ?? null
+      case 'solar':
+        return selfModel?.electrical?.solar ?? null
+      case 'inverters':
+        return selfModel?.electrical?.inverters ?? null
+      case 'chargers':
+        return selfModel?.electrical?.chargers ?? null
+      case 'tanks':
+        return selfModel?.tanks ?? null
+      case 'notifications':
+        return selfModel?.notifications ?? null
+      case 'entertainment':
+        return selfModel?.entertainment ?? null
+    }
+  }
+
+  function writeSelfSlice(sliceKey: SignalKSelfSliceKey) {
+    const nextValue = cloneSignalKSlice(readSelfSlice(sliceKey))
+
+    switch (sliceKey) {
+      case 'navigation':
+        navigation.value = nextValue as SignalKSelfState['navigation']
+        break
+      case 'wind':
+        wind.value = nextValue as SignalKSelfState['wind']
+        break
+      case 'depth':
+        depth.value = nextValue as SignalKSelfState['depth']
+        break
+      case 'water':
+        water.value = nextValue as SignalKSelfState['water']
+        break
+      case 'outside':
+        outside.value = nextValue as SignalKSelfState['outside']
+        break
+      case 'inside':
+        inside.value = nextValue as SignalKSelfState['inside']
+        break
+      case 'current':
+        current.value = nextValue as SignalKSelfState['current']
+        break
+      case 'tide':
+        tide.value = nextValue as SignalKSelfState['tide']
+        break
+      case 'steering':
+        steering.value = nextValue as SignalKSelfState['steering']
+        break
+      case 'propulsion':
+        propulsion.value = nextValue as SignalKSelfState['propulsion']
+        break
+      case 'batteries':
+        batteries.value = nextValue as SignalKSelfState['batteries']
+        break
+      case 'solar':
+        solar.value = nextValue as SignalKSelfState['solar']
+        break
+      case 'inverters':
+        inverters.value = nextValue as SignalKSelfState['inverters']
+        break
+      case 'chargers':
+        chargers.value = nextValue as SignalKSelfState['chargers']
+        break
+      case 'tanks':
+        tanks.value = nextValue as SignalKSelfState['tanks']
+        break
+      case 'notifications':
+        notifications.value = nextValue as SignalKSelfState['notifications']
+        break
+      case 'entertainment':
+        entertainment.value = nextValue as SignalKSelfState['entertainment']
+        break
+    }
+  }
+
+  function syncAllSelfSlices() {
+    if (!selfModel) {
+      clearSelfSlices()
+      return
+    }
+
+    writeSelfSlice('navigation')
+    writeSelfSlice('wind')
+    writeSelfSlice('depth')
+    writeSelfSlice('water')
+    writeSelfSlice('outside')
+    writeSelfSlice('inside')
+    writeSelfSlice('current')
+    writeSelfSlice('tide')
+    writeSelfSlice('steering')
+    writeSelfSlice('propulsion')
+    writeSelfSlice('batteries')
+    writeSelfSlice('solar')
+    writeSelfSlice('inverters')
+    writeSelfSlice('chargers')
+    writeSelfSlice('tanks')
+    writeSelfSlice('notifications')
+    writeSelfSlice('entertainment')
+  }
+
+  function syncTouchedSelfSlices(touchedSlices: Set<SignalKSelfSliceKey>) {
+    for (const sliceKey of touchedSlices) {
+      writeSelfSlice(sliceKey)
+    }
+  }
+
+  function getClientEndpoints(): SignalKEndpoint[] {
+    return resolveSignalKClientEndpoints({
+      remoteBaseUrl: runtimeConfig.public.signalKRemoteBaseUrl,
+      localBaseUrl: runtimeConfig.public.signalKLocalBaseUrl,
+      devBaseUrl: runtimeConfig.public.signalKDevBaseUrl,
+      isDev: import.meta.dev,
+      pageProtocol: window.location.protocol === 'https:' ? 'https:' : 'http:',
+    })
+  }
+
+  async function canReachEndpoint(
+    endpoint: SignalKEndpoint,
+    timeoutMs = ENDPOINT_PROBE_TIMEOUT_MS,
+  ): Promise<boolean> {
     try {
       const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 2000)
-      const response = await fetch(`${LOCAL_SERVER}/signalk/v1/api/`, {
+      const timeout = setTimeout(() => controller.abort(), timeoutMs)
+      const response = await fetch(endpoint.probeUrl, {
         method: 'GET',
         signal: controller.signal,
       })
@@ -199,141 +383,227 @@ export const useSignalKStore = defineStore('signalk', () => {
   }
 
   function clearReconnectTimer() {
-    if (reconnectTimeout) {
-      clearTimeout(reconnectTimeout)
-      reconnectTimeout = null
-    }
+    if (!reconnectTimeout) return
+    clearTimeout(reconnectTimeout)
+    reconnectTimeout = null
   }
 
-  function stopLiveIntervals() {
+  function stopRuntimeIntervals() {
     if (staleCleanupInterval) {
       clearInterval(staleCleanupInterval)
       staleCleanupInterval = null
     }
-    if (_aisFlushInterval) {
-      clearInterval(_aisFlushInterval)
-      _aisFlushInterval = null
+    if (aisFlushInterval) {
+      clearInterval(aisFlushInterval)
+      aisFlushInterval = null
     }
-    if (localCheckInterval) {
-      clearInterval(localCheckInterval)
-      localCheckInterval = null
+    if (localUpgradeInterval) {
+      clearInterval(localUpgradeInterval)
+      localUpgradeInterval = null
     }
   }
 
   function resetSignalKDataState() {
     api.value = null
-    vessel.value = null
-    isLocalSignalK.value = false
-    activeSignalKBaseUrl.value = REMOTE_SERVER
+    selfModel = null
+    activeSignalKBaseUrl.value = null
+    lastDeltaAt.value = null
+    totalUpdates.value = 0
+    pathDebounces.clear()
+    clearSelfSlices()
     _aisPending.clear()
     _aisMetadataCache.clear()
     otherVessels.value = new Map()
-    windSpeedsBuffer.clear()
-    timesBuffer.clear()
-    totalUpdates.value = 0
-    lastUpdateTime.value = 0
-    pathDebounces.clear()
+    appliedSubscriptionSignature = ''
+    aisNamesLoadedForConnection = false
   }
 
   async function disconnectClient(target: any) {
     if (!target) return
+
+    if (wiredSignalKClient === target) {
+      target.off?.('delta', dispatchDelta)
+      wiredSignalKClient = null
+    }
+
     target.cleanupListeners?.()
+    target.removeAllListeners?.()
     await target.disconnect?.()
   }
 
-  function scheduleReconnect(reason?: unknown) {
-    if (!allowReconnect || reconnectTimeout || !import.meta.client) {
+  function subscriptionSignature(commands: ReturnType<typeof buildSignalKSubscriptionCommands>) {
+    return JSON.stringify(commands)
+  }
+
+  function syncSubscriptions() {
+    const activeClient = client.value
+    if (!activeClient) return
+
+    const commands = buildSignalKSubscriptionCommands(bundleCounts.value)
+    const nextSignature = subscriptionSignature(commands)
+    if (nextSignature === appliedSubscriptionSignature) {
       return
     }
 
-    if (reason) {
-      console.warn('SignalK connection lost, retrying with fallback', reason)
+    activeClient.unsubscribe?.()
+    for (const command of commands) {
+      activeClient.subscribe(command)
     }
+
+    appliedSubscriptionSignature = nextSignature
+
+    if (bundleCounts.value.ais > 0 && !aisNamesLoadedForConnection) {
+      aisNamesLoadedForConnection = true
+      void fetchAISNames()
+    }
+  }
+
+  function startAISFlush() {
+    if (aisFlushInterval) return
+    aisFlushInterval = setInterval(flushAIS, AIS_FLUSH_INTERVAL_MS)
+  }
+
+  function flushAIS() {
+    if (_aisPending.size === 0) return
+    const next = new Map(otherVessels.value)
+    for (const [id, vessel] of _aisPending) {
+      next.set(id, vessel)
+    }
+    otherVessels.value = next
+    _aisPending.clear()
+  }
+
+  function cleanupStaleVessels() {
+    const now = Date.now()
+    const next = new Map(otherVessels.value)
+    let changed = false
+
+    for (const [id, vessel] of next) {
+      if (now - vessel.lastUpdate > STALE_AIS_TIMEOUT_MS) {
+        next.delete(id)
+        changed = true
+      }
+    }
+
+    if (changed) {
+      otherVessels.value = next
+    }
+  }
+
+  function startStaleCleanup() {
+    if (staleCleanupInterval) return
+    staleCleanupInterval = setInterval(cleanupStaleVessels, 60_000)
+  }
+
+  function startLocalUpgradeChecks() {
+    if (localUpgradeInterval) {
+      clearInterval(localUpgradeInterval)
+      localUpgradeInterval = null
+    }
+
+    if (!import.meta.client || activeEndpointKind.value !== 'remote') return
+
+    localUpgradeInterval = setInterval(async () => {
+      if (!bundleManager.hasActiveBundles() || initInFlight) {
+        return
+      }
+
+      const localEndpoint = getClientEndpoints().find((endpoint) => endpoint.kind === 'local')
+      if (!localEndpoint) return
+
+      if (await canReachEndpoint(localEndpoint, 2_000)) {
+        await reconnectToPreferredEndpoint()
+      }
+    }, LOCAL_UPGRADE_CHECK_INTERVAL_MS)
+  }
+
+  async function reconnectToPreferredEndpoint() {
+    if (initInFlight) {
+      await initInFlight
+      return
+    }
+
+    const previousClient = client.value
+    client.value = null
+    stopRuntimeIntervals()
+    resetSignalKDataState()
+    await disconnectClient(previousClient)
+    await ensureConnected()
+  }
+
+  function scheduleReconnect(reason?: unknown) {
+    if (
+      !allowReconnect ||
+      reconnectTimeout ||
+      !bundleManager.hasActiveBundles() ||
+      !import.meta.client
+    ) {
+      return
+    }
+
+    updateTransport('retry-scheduled', {
+      endpointKind: activeEndpointKind.value,
+      error: toErrorMessage(reason),
+    })
 
     reconnectTimeout = setTimeout(() => {
       reconnectTimeout = null
-      void initClient()
+      void ensureConnected()
     }, RECONNECT_DELAY_MS)
   }
 
   function bindConnectionLifecycle(nextClient: any, endpoint: SignalKEndpoint) {
-    const handleConnectionLoss = (reason?: unknown) => {
-      if (client.value !== nextClient) {
-        return
-      }
+    const handleConnectionLoss = async (reason?: unknown) => {
+      if (client.value !== nextClient) return
 
       client.value = null
-      stopLiveIntervals()
+      stopRuntimeIntervals()
       resetSignalKDataState()
-      void disconnectClient(nextClient)
-      scheduleReconnect(reason || `${endpoint.label} disconnected`)
+      updateTransport('disconnect', {
+        endpointKind: endpoint.kind,
+        error: toErrorMessage(reason),
+      })
+      await disconnectClient(nextClient)
+      scheduleReconnect(reason ?? `${endpoint.label} disconnected`)
     }
 
-    nextClient.on('disconnect', () => handleConnectionLoss(`${endpoint.label} disconnected`))
-    nextClient.on('error', (error: unknown) => handleConnectionLoss(error))
+    nextClient.on('disconnect', () => {
+      void handleConnectionLoss(`${endpoint.label} disconnected`)
+    })
+    nextClient.on('error', (error: unknown) => {
+      void handleConnectionLoss(error)
+    })
   }
 
-  const subscribeToSelfUpdates = () => {
-    // Subscribe to own vessel data
-    const selfSubs = { context: 'vessels.self', subscribe: [...SELF_SUBSCRIPTIONS] }
-    client.value?.subscribe(selfSubs)
-
-    // Subscribe to AIS targets (other vessels) — position, name, heading, speed
-    const aisSubs = {
-      context: 'vessels.*',
-      subscribe: [...AIS_SUBSCRIPTIONS],
+  function subscribeDelta(callback: (delta: SignalKDelta) => void) {
+    deltaListeners.add(callback)
+    return () => {
+      deltaListeners.delete(callback)
     }
-    client.value?.subscribe(aisSubs)
-
-    // Route deltas to the correct handler based on context
-    client.value?.on('delta', handleDelta)
   }
 
-  const updateVessel = (delta: any) => {
-    if (!vessel.value) return
+  function updateSelfFromDelta(delta: SignalKDelta) {
+    if (!selfModel) return
 
     const currentTime = Date.now()
-
-    const updatesToProcess = delta.updates.flatMap((update: any) =>
-      update.values.filter((value: any) => {
-        const lastUpdate = pathDebounces.get(value.path) || 0
-        if (currentTime - lastUpdate >= UPDATE_INTERVAL) {
-          pathDebounces.set(value.path, currentTime)
-          return true
-        }
-        return false
-      }),
+    const filteredDelta = filterSignalKDelta(
+      delta,
+      pathDebounces,
+      currentTime,
+      DELTA_UPDATE_INTERVAL_MS,
     )
 
-    if (updatesToProcess.length > 0) {
-      vessel.value.updateFromSignalK({
-        ...delta,
-        updates: [
-          {
-            ...delta.updates[0],
-            values: updatesToProcess,
-          },
-        ],
-      })
-      // shallowRef doesn't track deep mutations — notify Vue manually
-      triggerRef(vessel)
-      totalUpdates.value++
-      lastUpdateTime.value = currentTime
+    if (!filteredDelta) {
+      return
     }
+
+    const touchedSlices = collectTouchedSelfSlices(filteredDelta)
+    selfModel.updateFromSignalK(filteredDelta)
+    syncTouchedSelfSlices(touchedSlices)
+    totalUpdates.value += 1
   }
 
-  /** Route a delta to self-vessel or AIS handler based on context */
-  const handleDelta = (delta: any) => {
-    const context: string = delta.context || ''
-    if (context === 'vessels.self' || context.includes(vessel.value?.mmsi || '__none__')) {
-      updateVessel(delta)
-    } else if (context.startsWith('vessels.')) {
-      updateOtherVessel(context, delta)
-    }
-  }
-
-  /** Upsert an AIS target from a SignalK delta */
-  const updateOtherVessel = (context: string, delta: any) => {
+  function updateOtherVessel(context: string, delta: SignalKDelta) {
     const vesselId = context.replace('vessels.', '')
     const existing = _aisPending.get(vesselId) ?? otherVessels.value.get(vesselId)
     const target: AISVessel = existing || {
@@ -355,7 +625,6 @@ export const useSignalKStore = defineStore('signalk', () => {
       navState: null,
     }
 
-    // Merge cached metadata from REST API fetch (if available)
     if (!existing) {
       const cached = _aisMetadataCache.get(vesselId)
       if (cached) {
@@ -370,79 +639,103 @@ export const useSignalKStore = defineStore('signalk', () => {
     }
 
     for (const update of delta.updates || []) {
-      for (const v of update.values || []) {
-        switch (v.path) {
+      for (const value of update.values || []) {
+        switch (value.path) {
           case 'navigation.position':
-            if (v.value?.latitude != null && v.value?.longitude != null) {
-              target.lat = v.value.latitude
-              target.lng = v.value.longitude
+            if (
+              (value.value as Record<string, number> | undefined)?.latitude != null &&
+              (value.value as Record<string, number> | undefined)?.longitude != null
+            ) {
+              target.lat = Number((value.value as Record<string, number>).latitude)
+              target.lng = Number((value.value as Record<string, number>).longitude)
             }
             break
           case 'navigation.courseOverGroundTrue':
-            if (v.value != null) target.cog = (v.value * 180) / Math.PI
+            if (value.value != null) target.cog = (Number(value.value) * 180) / Math.PI
             break
           case 'navigation.speedOverGround':
-            if (v.value != null) target.sog = v.value * 1.94384 // m/s → knots
+            if (value.value != null) target.sog = Number(value.value) * 1.94384
             break
           case 'navigation.headingTrue':
-            if (v.value != null) target.heading = (v.value * 180) / Math.PI
+            if (value.value != null) target.heading = (Number(value.value) * 180) / Math.PI
             break
           case 'name':
-            if (typeof v.value === 'string') target.name = v.value
+            if (typeof value.value === 'string') target.name = value.value
             break
           case 'design.aisShipType':
-            if (v.value?.id != null) target.shipType = Number(v.value.id)
-            else if (typeof v.value === 'number') target.shipType = v.value
+            if ((value.value as Record<string, unknown> | undefined)?.id != null) {
+              target.shipType = Number((value.value as Record<string, unknown>).id)
+            } else if (typeof value.value === 'number') target.shipType = value.value
             break
         }
       }
     }
 
-    // Extract MMSI from context if present
     const mmsiMatch = vesselId.match(/mmsi:(\d+)/)
-    if (mmsiMatch) target.mmsi = mmsiMatch[1] ?? null
+    if (mmsiMatch) {
+      target.mmsi = mmsiMatch[1] ?? null
+    }
 
     target.lastUpdate = Date.now()
-    // Buffer in non-reactive map — flushed every 2s
     _aisPending.set(vesselId, target)
   }
 
-  /**
-   * One-time fetch of vessel names from the SignalK REST API.
-   * AIS vessel names arrive infrequently via deltas (~every 6 min for class B).
-   * This seeds our name cache so callouts show real names immediately.
-   */
-  const fetchAISNames = async () => {
-    if (!api.value) return
+  function handleDelta(delta: SignalKDelta) {
+    const context = delta.context || ''
+    const selfMmsi = selfModel?.mmsi
+
+    if (context === 'vessels.self' || (selfMmsi && context.includes(selfMmsi))) {
+      updateSelfFromDelta(delta)
+      return
+    }
+
+    if (context.startsWith('vessels.')) {
+      updateOtherVessel(context, delta)
+    }
+  }
+
+  function dispatchDelta(delta: SignalKDelta) {
+    lastDeltaAt.value = Date.now()
+    handleDelta(delta)
+
+    for (const callback of deltaListeners) {
+      try {
+        callback(delta)
+      } catch (error) {
+        console.error('[SignalK] delta listener error', error)
+      }
+    }
+  }
+
+  async function fetchAISNames() {
+    if (!api.value || !activeSignalKBaseUrl.value) return
+
     try {
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 10_000)
-      const resp = await fetch(`${activeSignalKBaseUrl.value}/signalk/v1/api/vessels`, {
+      const response = await fetch(`${activeSignalKBaseUrl.value}/signalk/v1/api/vessels`, {
         signal: controller.signal,
       })
       clearTimeout(timeout)
 
-      if (!resp.ok) return
-      const vessels = await resp.json()
+      if (!response.ok) return
 
-      // vessels is an object keyed by SignalK vessel context (e.g. "urn:mrn:imo:mmsi:367596340")
-      for (const [contextKey, data] of Object.entries(vessels as Record<string, any>)) {
+      const vessels = await response.json()
+      for (const [contextKey, rawData] of Object.entries(vessels as Record<string, any>)) {
         if (contextKey === 'self') continue
 
-        const vesselId = contextKey
-        const vData = data as any
-        const name: string | null = vData?.name ?? null
-        const shipType: number | null = vData?.design?.aisShipType?.value?.id ?? null
-        const destination: string | null = vData?.navigation?.destination?.commonName?.value ?? null
-        const callSign: string | null = vData?.communication?.callsignVhf?.value ?? null
-        const length: number | null = vData?.design?.length?.value?.overall ?? null
+        const data = rawData as any
+        const name: string | null = data?.name ?? null
+        const shipType: number | null = data?.design?.aisShipType?.value?.id ?? null
+        const destination: string | null = data?.navigation?.destination?.commonName?.value ?? null
+        const callSign: string | null = data?.communication?.callsignVhf?.value ?? null
+        const length: number | null = data?.design?.length?.value?.overall ?? null
         const beam: number | null =
-          typeof vData?.design?.beam?.value === 'number' ? vData.design.beam.value : null
+          typeof data?.design?.beam?.value === 'number' ? data.design.beam.value : null
         const draft: number | null =
-          vData?.design?.draft?.value?.current ?? vData?.design?.draft?.value?.maximum ?? null
+          data?.design?.draft?.value?.current ?? data?.design?.draft?.value?.maximum ?? null
 
-        // Always cache the metadata for later use by updateOtherVessel
-        _aisMetadataCache.set(vesselId, {
+        _aisMetadataCache.set(contextKey, {
           name,
           shipType,
           destination,
@@ -452,8 +745,7 @@ export const useSignalKStore = defineStore('signalk', () => {
           draft,
         })
 
-        // Update existing vessel in reactive map
-        const existing = otherVessels.value.get(vesselId)
+        const existing = otherVessels.value.get(contextKey)
         if (existing) {
           if (name && !existing.name) existing.name = name
           if (shipType != null && existing.shipType == null) existing.shipType = shipType
@@ -463,30 +755,14 @@ export const useSignalKStore = defineStore('signalk', () => {
           if (beam != null && existing.beam == null) existing.beam = beam
           if (draft != null && existing.draft == null) existing.draft = draft
         }
-
-        // Also update pending buffer
-        const pending = _aisPending.get(vesselId)
-        if (pending) {
-          if (name && !pending.name) pending.name = name
-          if (shipType != null && pending.shipType == null) pending.shipType = shipType
-          if (destination && !pending.destination) pending.destination = destination
-          if (callSign && !pending.callSign) pending.callSign = callSign
-          if (length != null && pending.length == null) pending.length = length
-          if (beam != null && pending.beam == null) pending.beam = beam
-          if (draft != null && pending.draft == null) pending.draft = draft
-        }
       }
     } catch {
-      // Silently ignore — names will come through deltas eventually
+      // Fall back to delta-driven naming if the REST fetch fails.
     }
   }
 
-  async function connectToEndpoint(
-    endpoint: SignalKEndpoint,
-    Client: any,
-    Vessel: any,
-  ): Promise<boolean> {
-    const nextClient = new Client({
+  async function connectToEndpoint(endpoint: SignalKEndpoint, ClientCtor: any, VesselCtor: any) {
+    const nextClient = new ClientCtor({
       hostname: endpoint.hostname,
       port: endpoint.port,
       useTLS: endpoint.useTLS,
@@ -503,11 +779,11 @@ export const useSignalKStore = defineStore('signalk', () => {
         `Timed out connecting to ${endpoint.label} SignalK`,
       )
 
-      const nextApi: { self: () => Promise<unknown> } = await withTimeout(
+      const nextApi = (await withTimeout(
         nextClient.API(),
         CONNECT_TIMEOUT_MS,
         `Timed out preparing ${endpoint.label} SignalK API`,
-      )
+      )) as any
 
       const response = await withTimeout(
         nextApi.self(),
@@ -523,63 +799,68 @@ export const useSignalKStore = defineStore('signalk', () => {
 
       client.value = nextClient
       api.value = nextApi
-      vessel.value = new Vessel(response, unitPreferences.value)
+      selfModel = new VesselCtor(response, unitPreferences.value)
       activeSignalKBaseUrl.value = endpoint.baseUrl
-      isLocalSignalK.value = endpoint.kind === 'local' || endpoint.kind === 'dev'
-
-      subscribeToSelfUpdates()
+      lastDeltaAt.value = Date.now()
+      appliedSubscriptionSignature = ''
+      aisNamesLoadedForConnection = false
+      updateTransport('connect-success', { endpointKind: endpoint.kind })
+      syncAllSelfSlices()
       startStaleCleanup()
-      _startAISFlush()
-      void fetchAISNames()
+      startAISFlush()
+      syncSubscriptions()
+      startLocalUpgradeChecks()
 
-      return true
+      if (wiredSignalKClient !== nextClient) {
+        nextClient.on('delta', dispatchDelta)
+        wiredSignalKClient = nextClient
+      }
     } catch (error) {
       await disconnectClient(nextClient)
       throw error
     }
   }
 
-  const initClient = async () => {
-    // Only runs on the client side
-    if (!import.meta.client) return
-
-    if (initInFlight) {
-      return initInFlight
+  async function ensureConnected() {
+    if (!import.meta.client || !allowReconnect || !bundleManager.hasActiveBundles()) {
+      return
     }
 
-    allowReconnect = true
+    if (client.value || initInFlight) {
+      return initInFlight ?? Promise.resolve()
+    }
 
     initInFlight = (async () => {
       clearReconnectTimer()
-      stopLiveIntervals()
-
-      const previousClient = client.value
-      client.value = null
+      stopRuntimeIntervals()
       resetSignalKDataState()
-      await disconnectClient(previousClient)
 
       const { Client } = await import('@signalk/client')
       const { Vessel } = await import('~/types/signalk/vessel')
+      const endpoints = getClientEndpoints()
 
-      const endpoints = getSignalKEndpoints()
-      let lastError: unknown = null
+      let lastConnectError: unknown = null
+      updateTransport('connect-start', { endpointKind: endpoints[0]?.kind ?? 'none' })
 
-      for (const [index, endpoint] of endpoints.entries()) {
+      for (const endpoint of endpoints) {
         try {
+          if (endpoint.kind !== 'remote' && !(await canReachEndpoint(endpoint))) {
+            lastConnectError = new Error(`SignalK ${endpoint.label} unavailable`)
+            continue
+          }
+
           await connectToEndpoint(endpoint, Client, Vessel)
           return
         } catch (error) {
-          lastError = error
-          const hasFallback = index < endpoints.length - 1
-
-          if (hasFallback) {
-            console.warn(`SignalK ${endpoint.label} endpoint unavailable, trying fallback`, error)
-          }
+          lastConnectError = error
         }
       }
 
-      console.warn('SignalK connection error:', lastError)
-      scheduleReconnect(lastError)
+      updateTransport('connect-failure', {
+        endpointKind: activeEndpointKind.value,
+        error: toErrorMessage(lastConnectError),
+      })
+      scheduleReconnect(lastConnectError)
     })()
 
     try {
@@ -587,60 +868,128 @@ export const useSignalKStore = defineStore('signalk', () => {
     } finally {
       initInFlight = null
     }
-
-    if (!import.meta.dev && !isLocalSignalK.value) {
-      localCheckInterval = setInterval(async () => {
-        if (await isLocalServerAvailable()) {
-          await cleanup()
-          await initClient()
-        }
-      }, LOCAL_CHECK_INTERVAL)
-    }
   }
 
-  const setUnitPreferences = (preferences: Partial<UnitPreferences>) => {
-    unitPreferences.value = { ...unitPreferences.value, ...preferences }
-    vessel.value?.updateUnitPreferences?.(unitPreferences.value)
-  }
-
-  /** Remove AIS targets that haven't been updated in STALE_VESSEL_TIMEOUT */
-  const cleanupStaleVessels = () => {
-    const now = Date.now()
-    for (const [id, v] of otherVessels.value) {
-      if (now - v.lastUpdate > STALE_VESSEL_TIMEOUT) {
-        otherVessels.value.delete(id)
-      }
-    }
-  }
-
-  const startStaleCleanup = () => {
-    if (staleCleanupInterval) return
-    staleCleanupInterval = setInterval(cleanupStaleVessels, 60_000)
-  }
-
-  const cleanup = async () => {
-    allowReconnect = false
+  async function disconnectToIdle() {
     clearReconnectTimer()
-    stopLiveIntervals()
+    stopRuntimeIntervals()
 
     const activeClient = client.value
     client.value = null
     resetSignalKDataState()
+    updateTransport('idle')
     await disconnectClient(activeClient)
   }
 
+  function bootstrap() {
+    allowReconnect = true
+  }
+
+  function acquireBundle(bundleKey: SignalKBundleKey) {
+    bundleManager.acquire(bundleKey)
+    syncBundleCounts()
+    syncSubscriptions()
+  }
+
+  function releaseBundle(bundleKey: SignalKBundleKey) {
+    bundleManager.release(bundleKey)
+    syncBundleCounts()
+    syncSubscriptions()
+  }
+
+  function setUnitPreferences(preferences: Partial<UnitPreferences>) {
+    unitPreferences.value = { ...unitPreferences.value, ...preferences }
+    selfModel?.updateUnitPreferences?.(unitPreferences.value)
+  }
+
+  async function cleanup() {
+    allowReconnect = false
+    clearReconnectTimer()
+    bundleManager.reset()
+    syncBundleCounts()
+    await disconnectToIdle()
+  }
+
+  function selectSelfSlice<K extends SignalKSelfSliceKey>(sliceKey: K) {
+    switch (sliceKey) {
+      case 'navigation':
+        return navigation
+      case 'wind':
+        return wind
+      case 'depth':
+        return depth
+      case 'water':
+        return water
+      case 'outside':
+        return outside
+      case 'inside':
+        return inside
+      case 'current':
+        return current
+      case 'tide':
+        return tide
+      case 'steering':
+        return steering
+      case 'propulsion':
+        return propulsion
+      case 'batteries':
+        return batteries
+      case 'solar':
+        return solar
+      case 'inverters':
+        return inverters
+      case 'chargers':
+        return chargers
+      case 'tanks':
+        return tanks
+      case 'notifications':
+        return notifications
+      case 'entertainment':
+        return entertainment
+    }
+  }
+
   return {
-    vessel,
-    windSpeeds,
-    windSpeed,
-    times,
-    initClient,
+    connectionState,
+    activeEndpointKind,
+    lastDeltaAt,
+    lastError,
+    selfState,
+    navigation,
+    wind,
+    depth,
+    water,
+    outside,
+    inside,
+    current,
+    tide,
+    steering,
+    propulsion,
+    batteries,
+    solar,
+    inverters,
+    chargers,
+    tanks,
+    notifications,
+    entertainment,
     otherVessels,
     otherVesselsList,
     showOtherVessels,
     totalUpdates,
-    setUnitPreferences,
+    bundleCounts,
+    bootstrap,
     cleanup,
-    isLocalSignalK,
+    acquireBundle,
+    releaseBundle,
+    selectSelfSlice,
+    setUnitPreferences,
+    subscribeDelta,
   }
 })
+
+function toErrorMessage(error: unknown): string | null {
+  if (!error) return null
+  if (error instanceof Error) return error.message
+  if (typeof error === 'string') return error
+  return String(error)
+}

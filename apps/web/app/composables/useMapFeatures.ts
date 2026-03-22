@@ -1,4 +1,5 @@
 import { useVesselPosition } from '~/composables/useVesselPosition'
+import { useSignalKBundle } from '~/composables/useSignalKBundle'
 import { useSignalKData } from '~/composables/useSignalKData'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mapkit is a CDN global with no published TypeScript types
@@ -147,6 +148,8 @@ function getMap(): MapRef | null {
  * Anchor Watch, Waypoints, Distance Measurement, and Map Type switching.
  */
 export function useMapFeatures() {
+  useSignalKBundle('map-environment')
+
   const { lat, lng, heading, cog, sog } = useVesselPosition()
   const { getDepthData, getWaterTempData, getWindData, getCurrentData } = useSignalKData()
 
