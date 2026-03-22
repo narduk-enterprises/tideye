@@ -304,11 +304,11 @@ function normalizeContextualLabel(value: unknown) {
 
 function normalizeContextualKey(value: unknown) {
   if (typeof value !== 'string') return ''
-  return value.trim().replace(/\s+/g, ' ').toLowerCase()
+  return value.trim().replaceAll(/\s+/g, ' ').toLowerCase()
 }
 
 function isSpecificMarinePlaceLabel(value: string) {
-  return /\b(?:marina|harbor|harbour|port|anchorage|bay|inlet|cay|island|sound|channel|river|creek|point|shoal|harbour)\b/i.test(
+  return /\b(?:marina|harbor|harbour|port|anchorage|bay|inlet|cay|island|sound|channel|river|creek|point|shoal)\b/i.test(
     value,
   )
 }

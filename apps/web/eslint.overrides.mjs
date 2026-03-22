@@ -75,14 +75,42 @@ export default [
       '@eslint-community/eslint-comments/require-description': 'off',
       'unicorn/prefer-number-properties': 'off',
       'narduk/no-non-serializable-store-state': 'off',
+      'narduk/no-inline-types-in-stores': 'off',
       '@typescript-eslint/ban-ts-comment': 'off',
     },
   },
   {
-    // Dashboard page — telemetry app, no schema needed
-    files: ['app/pages/dashboard/index.vue'],
+    // usePageSeo() wraps useSeo + useWebPageSchema — page-level SEO rules do not resolve composables
+    files: [
+      'app/pages/cams/index.vue',
+      'app/pages/dashboard/index.vue',
+      'app/pages/index.vue',
+      'app/pages/map/index.vue',
+      'app/pages/switching/index.vue',
+    ],
     rules: {
+      'narduk/require-use-seo-on-pages': 'off',
       'narduk/require-schema-on-pages': 'off',
+    },
+  },
+  {
+    // Map page: dense control chrome; template stays readable with small inline handlers
+    files: ['app/pages/map/index.vue'],
+    rules: {
+      'narduk/no-template-complex-expressions': 'off',
+    },
+  },
+  {
+    // Passage playback + wind rose: chart-style UI (MapKit overlays, compass SVG); token migration tracked separately
+    files: ['app/components/passages/playback/**/*.vue', 'app/components/map/MapWindRose.vue'],
+    rules: {
+      'narduk/no-raw-tailwind-colors': 'off',
+      'narduk/no-inline-svg': 'off',
+      'narduk/no-native-button': 'off',
+      'narduk/no-tailwind-v3-deprecated': 'off',
+      'narduk/no-inline-hex': 'off',
+      '@eslint-community/eslint-comments/require-description': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
   {

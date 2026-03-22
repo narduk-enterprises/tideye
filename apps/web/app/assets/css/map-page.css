@@ -322,8 +322,13 @@
 }
 
 @keyframes anchor-breach-flash {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .map-page .anchor-breach-pulse {
@@ -331,8 +336,15 @@
 }
 
 @keyframes anchor-btn-pulse {
-  0%, 100% { box-shadow: var(--shadow-elevated); }
-  50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.3), var(--shadow-elevated); }
+  0%,
+  100% {
+    box-shadow: var(--shadow-elevated);
+  }
+  50% {
+    box-shadow:
+      0 0 0 4px rgba(239, 68, 68, 0.3),
+      var(--shadow-elevated);
+  }
 }
 
 /* ── Wind Rose Overlay ────────────────────────────────────── */
@@ -445,7 +457,9 @@
 
 .filter-slide-enter-active,
 .filter-slide-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 
 .filter-slide-enter-from,
@@ -458,7 +472,9 @@
 
 .sidebar-slide-enter-active,
 .sidebar-slide-leave-active {
-  transition: transform 0.3s ease, opacity 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    opacity 0.3s ease;
 }
 
 .sidebar-slide-enter-from,
@@ -485,8 +501,13 @@
 }
 
 @keyframes cpa-badge-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 /* ── Responsive ───────────────────────────────────────────── */

@@ -3,11 +3,7 @@
  * MapVesselList — Slide-out panel listing all visible AIS vessels sorted by distance.
  * Tap a row to pan + highlight that vessel on the map. Search by name.
  */
-import {
-  CATEGORIES,
-  getShipCategoryKey,
-  type ShipCategoryKey,
-} from '~/composables/useAISOverlay'
+import { CATEGORIES, getShipCategoryKey, type ShipCategoryKey } from '~/composables/useAISOverlay'
 import type { AISVessel } from '~/types/map'
 
 const props = defineProps<{
@@ -93,16 +89,8 @@ function formatDist(d: number | null): string {
 <template>
   <div class="vessel-list-sidebar">
     <div class="vessel-list-header">
-      <span class="vessel-list-title">
-        AIS Vessels ({{ sortedVessels.length }})
-      </span>
-      <UButton
-        icon="i-lucide-x"
-        color="neutral"
-        variant="ghost"
-        size="xs"
-        @click="emit('close')"
-      />
+      <span class="vessel-list-title"> AIS Vessels ({{ sortedVessels.length }}) </span>
+      <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" @click="emit('close')" />
     </div>
 
     <div class="vessel-list-search">
@@ -122,15 +110,13 @@ function formatDist(d: number | null): string {
         class="vessel-list-item"
         @click="emit('select-vessel', item.v.id)"
       >
-        <span
-          class="vessel-list-item-dot"
-          :style="{ background: item.catColor }"
-        />
+        <span class="vessel-list-item-dot" :style="{ background: item.catColor }" />
         <span class="vessel-list-item-name">{{ item.name }}</span>
         <span
           class="vessel-list-item-type"
           :style="{ color: item.catColor, background: item.catColor + '15' }"
-        >{{ item.catLabel }}</span>
+          >{{ item.catLabel }}</span
+        >
         <span class="vessel-list-item-dist">{{ formatDist(item.dist) }}</span>
       </div>
 

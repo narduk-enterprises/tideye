@@ -1,6 +1,4 @@
-<!-- eslint-disable narduk/no-raw-tailwind-colors, narduk/no-tailwind-v3-deprecated -->
 <script setup lang="ts">
-/* eslint-disable @typescript-eslint/no-explicit-any, narduk/no-inline-hex */
 import type {
   PlaybackCameraMode,
   PlaybackEventMarker,
@@ -38,8 +36,7 @@ const FALLBACK_VIEWBOX = {
 }
 
 const { mapkitReady, mapkitError } = useMapKit()
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Color Mode types vary by setup
-const colorMode = useColorMode() as any
+const colorMode = useColorMode() as { value: string }
 const mapContainer = ref<HTMLElement | null>(null)
 
 let map: any | null = null

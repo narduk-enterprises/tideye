@@ -89,7 +89,10 @@ const passageStats = computed(() => {
   }
 
   const shortest = list.reduce((a, b) => (a.distanceNm <= b.distanceNm ? a : b))
-  const totalHours = list.reduce((sum, passage) => sum + hoursBetween(passage.startedAt, passage.endedAt), 0)
+  const totalHours = list.reduce(
+    (sum, passage) => sum + hoursBetween(passage.startedAt, passage.endedAt),
+    0,
+  )
   const averageNm = stats.value.totalNm / list.length
 
   const startCounts = new Map<string, number>()
@@ -706,7 +709,12 @@ function selectPassageFromStats(id: string) {
                   </p>
                   <p class="mt-2 text-sm text-muted">
                     {{ passageStats.shortest.distanceNm.toFixed(1) }} nm ·
-                    {{ hoursBetween(passageStats.shortest.startedAt, passageStats.shortest.endedAt).toFixed(1) }}
+                    {{
+                      hoursBetween(
+                        passageStats.shortest.startedAt,
+                        passageStats.shortest.endedAt,
+                      ).toFixed(1)
+                    }}
                     hours
                   </p>
                 </div>

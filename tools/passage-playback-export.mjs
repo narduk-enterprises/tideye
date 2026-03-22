@@ -386,7 +386,11 @@ function resolveClusterLabelFromRouteContext(accessToken, cluster, clusters, man
     }
   }
 
-  const nearbyCandidates = collectNearbyContextualCandidates(rawCandidates, cluster.lat, cluster.lon)
+  const nearbyCandidates = collectNearbyContextualCandidates(
+    rawCandidates,
+    cluster.lat,
+    cluster.lon,
+  )
   const routeContext = collectClusterRouteContext(cluster, clusters, manifestRows)
   const candidateLabels = new Set(
     nearbyCandidates.map((candidate) => normalizeContextualKey(candidate.label)).filter(Boolean),
@@ -455,10 +459,15 @@ function collectClusterRouteContext(cluster, clusters, manifestRows) {
     const otherLat = member.side === 'start' ? member.row.endLat : member.row.startLat
     const otherLon = member.side === 'start' ? member.row.endLon : member.row.startLon
     const oppositeLabel =
-      member.side === 'start' ? member.row.endPlaceLabel || null : member.row.startPlaceLabel || null
+      member.side === 'start'
+        ? member.row.endPlaceLabel || null
+        : member.row.startPlaceLabel || null
     if (oppositeLabel) oppositeLabels.add(oppositeLabel)
 
-    const neighborRows = [manifestRows[manifestRows.indexOf(member.row) - 1], manifestRows[manifestRows.indexOf(member.row) + 1]].filter(Boolean)
+    const neighborRows = [
+      manifestRows[manifestRows.indexOf(member.row) - 1],
+      manifestRows[manifestRows.indexOf(member.row) + 1],
+    ].filter(Boolean)
     for (const neighbor of neighborRows) {
       if (neighbor.startPlaceLabel) oppositeLabels.add(neighbor.startPlaceLabel)
       if (neighbor.endPlaceLabel) oppositeLabels.add(neighbor.endPlaceLabel)
@@ -483,7 +492,13 @@ function collectClusterRouteContext(cluster, clusters, manifestRows) {
   }
 }
 
-function nearestKnownEndpointLabel(lat, lon, points, avoidLabels, maxDistanceNm = LABEL_NEIGHBOR_MAX_NM) {
+function nearestKnownEndpointLabel(
+  lat,
+  lon,
+  points,
+  avoidLabels,
+  maxDistanceNm = LABEL_NEIGHBOR_MAX_NM,
+) {
   const avoidSet = new Set((avoidLabels || []).filter(Boolean))
   let best = null
   let bestDistance = Infinity

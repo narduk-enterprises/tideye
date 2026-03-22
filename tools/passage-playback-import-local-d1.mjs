@@ -25,16 +25,20 @@ const APP_ROOT = join(REPO_ROOT, 'apps/web')
 const GENERATED_DIR =
   process.env.PASSAGE_EXPORT_OUT_DIR || join(REPO_ROOT, 'tools/.generated/passage-playback')
 const MANIFEST_PATH = join(GENERATED_DIR, 'manifest.json')
-const SQL_OUT =
-  process.env.PASSAGE_IMPORT_SQL_OUT || join(GENERATED_DIR, 'import-local-d1.sql')
+const SQL_OUT = process.env.PASSAGE_IMPORT_SQL_OUT || join(GENERATED_DIR, 'import-local-d1.sql')
 const DB_NAME = process.env.PASSAGE_IMPORT_D1_NAME || 'tideye-db'
 const CLEAR_EXISTING = process.env.PASSAGE_IMPORT_CLEAR !== '0'
 const ALLOW_MISSING = process.env.PASSAGE_IMPORT_ALLOW_MISSING === '1'
 const REMOTE = process.env.PASSAGE_IMPORT_REMOTE === '1'
 const INCLUDE_TRAFFIC = process.env.PASSAGE_IMPORT_INCLUDE_TRAFFIC !== '0'
 const R2_BUCKET = process.env.PASSAGE_IMPORT_R2_BUCKET?.trim() || ''
-const R2_PREFIX = (process.env.PASSAGE_IMPORT_R2_PREFIX || 'passage-playback').replace(/^\/+|\/+$/g, '')
-const PLAYBACK_JSON_MAX_SAMPLES = Number(process.env.PASSAGE_IMPORT_PLAYBACK_JSON_MAX_SAMPLES || 320)
+const R2_PREFIX = (process.env.PASSAGE_IMPORT_R2_PREFIX || 'passage-playback').replace(
+  /^\/+|\/+$/g,
+  '',
+)
+const PLAYBACK_JSON_MAX_SAMPLES = Number(
+  process.env.PASSAGE_IMPORT_PLAYBACK_JSON_MAX_SAMPLES || 320,
+)
 const TRACK_GEOJSON_MAX_POINTS = Number(process.env.PASSAGE_IMPORT_TRACK_MAX_POINTS || 850)
 
 function main() {

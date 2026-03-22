@@ -213,7 +213,7 @@ function prepareSelfSamples(samples: PassagePlaybackSelfSample[]) {
     if (!Number.isFinite(ms)) continue
 
     if (prepared.length) {
-      const previous = prepared[prepared.length - 1]!
+      const previous = prepared.at(-1)!
       cumulativeDistanceNm += haversineNm(previous.lat, previous.lon, sample.lat, sample.lon)
     }
 
@@ -275,7 +275,7 @@ function buildPlaybackEvents(
     }
   }
 
-  if (peak !== samples[0] && peak !== samples[samples.length - 1]) {
+  if (peak !== samples[0] && peak !== samples.at(-1)) {
     events.push({
       id: 'peak-speed',
       kind: 'peak-speed',
@@ -359,13 +359,14 @@ function buildPlaybackEvents(
     })
   }
 
+  const lastSample = samples.at(-1)!
   events.push({
     id: 'arrival',
     kind: 'arrival',
     label: 'Arrival',
     shortLabel: 'Landfall',
-    t: samples[samples.length - 1]!.t,
-    ms: samples[samples.length - 1]!.ms,
+    t: lastSample.t,
+    ms: lastSample.ms,
   })
 
   return events.sort((left, right) => left.ms - right.ms)
@@ -496,9 +497,7 @@ export function usePassagePlaybackController(
   const speedOptions = PLAYBACK_SPEED_OPTIONS
 
   const startedMs = computed(() => preparedSelf.value[0]?.ms ?? 0)
-  const endedMs = computed(
-    () => preparedSelf.value[preparedSelf.value.length - 1]?.ms ?? preparedSelf.value[0]?.ms ?? 0,
-  )
+  const endedMs = computed(() => preparedSelf.value.at(-1)?.ms ?? preparedSelf.value[0]?.ms ?? 0)
   const durationMs = computed(() => Math.max(0, endedMs.value - startedMs.value))
 
   const activeSpeedOption = computed(

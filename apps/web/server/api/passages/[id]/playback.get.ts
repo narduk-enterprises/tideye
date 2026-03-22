@@ -29,7 +29,7 @@ function toNullableNumber(value: unknown) {
 }
 
 function normalizeSummary(
-  row: (typeof passages.$inferSelect) | null,
+  row: typeof passages.$inferSelect | null,
   raw: Record<string, unknown> | null,
 ): PassagePlaybackSummary {
   return {
@@ -280,7 +280,9 @@ export default defineEventHandler(async (event) => {
 
   const trafficVessels: PassagePlaybackTrafficVessel[] = []
   for (const trafficRow of trafficRows) {
-    const profile = normalizeTrafficProfile(safeJsonParse<Record<string, unknown>>(trafficRow.profileJson))
+    const profile = normalizeTrafficProfile(
+      safeJsonParse<Record<string, unknown>>(trafficRow.profileJson),
+    )
     if (!profile) continue
     trafficVessels.push({
       profile,

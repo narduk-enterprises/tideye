@@ -589,15 +589,12 @@ export const useSignalKStore = defineStore('signalk', () => {
     }
 
     if (!import.meta.dev && !isLocalSignalK.value) {
-      localCheckInterval = setInterval(
-        async () => {
-          if (await isLocalServerAvailable()) {
-            await cleanup()
-            await initClient()
-          }
-        },
-        LOCAL_CHECK_INTERVAL,
-      )
+      localCheckInterval = setInterval(async () => {
+        if (await isLocalServerAvailable()) {
+          await cleanup()
+          await initClient()
+        }
+      }, LOCAL_CHECK_INTERVAL)
     }
   }
 

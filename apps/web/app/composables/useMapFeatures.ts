@@ -51,7 +51,24 @@ function bearingTo(lat1: number, lng1: number, lat2: number, lng2: number): numb
 }
 
 function cardinalLabel(deg: number): string {
-  const dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
+  const dirs = [
+    'N',
+    'NNE',
+    'NE',
+    'ENE',
+    'E',
+    'ESE',
+    'SE',
+    'SSE',
+    'S',
+    'SSW',
+    'SW',
+    'WSW',
+    'W',
+    'WNW',
+    'NW',
+    'NNW',
+  ]
   return dirs[Math.round(deg / 22.5) % 16] ?? ''
 }
 
@@ -110,7 +127,10 @@ interface MapRef {
   removeAnnotation(ann: unknown): void
   overlays?: unknown[]
   annotations?: unknown[]
-  region?: { span: { latitudeDelta: number; longitudeDelta: number }; center: { latitude: number; longitude: number } }
+  region?: {
+    span: { latitudeDelta: number; longitudeDelta: number }
+    center: { latitude: number; longitude: number }
+  }
   mapType?: unknown
 }
 
@@ -176,7 +196,10 @@ export function useMapFeatures() {
 
   /** Depth below surface in feet, or null */
   const depthFt = computed(() => {
-    const m = depth.value?.belowSurface?.value ?? depth.value?.belowKeel?.value ?? depth.value?.belowTransducer?.value
+    const m =
+      depth.value?.belowSurface?.value ??
+      depth.value?.belowKeel?.value ??
+      depth.value?.belowTransducer?.value
     return m != null ? m * 3.28084 : null
   })
 
@@ -219,19 +242,19 @@ export function useMapFeatures() {
   })
 
   // ── Overlay Storage ──
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- MapKit overlay references
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- MapKit overlay refs lack published TS types
   const rangeRingOverlays: any[] = []
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- MapKit overlay refs lack published TS types
   const headingLineOverlays: any[] = []
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- MapKit overlay refs lack published TS types
   let selfTrailOverlay: any = null
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- MapKit overlay refs lack published TS types
   const anchorOverlays: any[] = []
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- MapKit overlay refs lack published TS types
   const waypointAnnotations: any[] = []
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- MapKit overlay refs lack published TS types
   const measureOverlays: any[] = []
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- MapKit overlay refs lack published TS types
   const measureAnnotations: any[] = []
 
   let trailTimer: ReturnType<typeof setInterval> | null = null
@@ -359,9 +382,7 @@ export function useMapFeatures() {
 
     if (!showSelfTrail.value || trailHistory.value.length < 2) return
 
-    const coords = trailHistory.value.map(
-      (p) => new mapkit.Coordinate(p.lat, p.lng),
-    )
+    const coords = trailHistory.value.map((p) => new mapkit.Coordinate(p.lat, p.lng))
     selfTrailOverlay = new mapkit.PolylineOverlay(coords, {
       style: new mapkit.Style({
         lineWidth: 3,
@@ -473,7 +494,8 @@ export function useMapFeatures() {
         coord,
         () => {
           const el = document.createElement('div')
-          el.style.cssText = 'cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:2px;'
+          el.style.cssText =
+            'cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:2px;'
           el.innerHTML = `
             <div style="width:12px;height:12px;background:#f59e0b;border:2px solid white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3);"></div>
             <div style="font-family:-apple-system,sans-serif;font-size:9px;font-weight:600;color:#f59e0b;background:rgba(255,255,255,0.85);padding:1px 4px;border-radius:3px;white-space:nowrap;text-shadow:0 0 2px white;">
@@ -606,8 +628,14 @@ export function useMapFeatures() {
   }
 
   function stop() {
-    if (trailTimer) { clearInterval(trailTimer); trailTimer = null }
-    if (refreshInterval) { clearInterval(refreshInterval); refreshInterval = null }
+    if (trailTimer) {
+      clearInterval(trailTimer)
+      trailTimer = null
+    }
+    if (refreshInterval) {
+      clearInterval(refreshInterval)
+      refreshInterval = null
+    }
 
     const map = getMap()
     if (map) {
@@ -629,8 +657,14 @@ export function useMapFeatures() {
   }
 
   // React to toggle changes
-  watch(showRangeRings, () => { _savePrefs(); refreshRangeRings() })
-  watch(showHeadingLine, () => { _savePrefs(); refreshHeadingLines() })
+  watch(showRangeRings, () => {
+    _savePrefs()
+    refreshRangeRings()
+  })
+  watch(showHeadingLine, () => {
+    _savePrefs()
+    refreshHeadingLines()
+  })
   watch(showSelfTrail, () => {
     _savePrefs()
     if (!showSelfTrail.value) trailHistory.value = []

@@ -233,8 +233,16 @@ export type ShipCategoryKey =
 
 /** Filterable category keys (excludes internal-only keys). */
 export const FILTERABLE_CATEGORIES: ShipCategoryKey[] = [
-  'fishing', 'towing', 'sailing', 'pleasure', 'highSpeed',
-  'service', 'passenger', 'cargo', 'tanker', 'military',
+  'fishing',
+  'towing',
+  'sailing',
+  'pleasure',
+  'highSpeed',
+  'service',
+  'passenger',
+  'cargo',
+  'tanker',
+  'military',
 ]
 
 export const CATEGORIES = {
@@ -268,6 +276,7 @@ function getShipCategory(shipType: number | null, sog: number | null): ShipCateg
 }
 
 /** Resolve the category KEY for a vessel (used for filtering). */
+// eslint-disable-next-line narduk/require-use-prefix-for-composables -- pure taxonomy helper exported for map filters, not a Vue composable
 export function getShipCategoryKey(shipType: number | null, sog: number | null): ShipCategoryKey {
   if (shipType == null) return (sog ?? 0) > 0.5 ? 'default' : 'atRest'
   if (shipType === 30) return 'fishing'
@@ -360,7 +369,7 @@ function buildCalloutElement(
     : ''
 
   // Vector toggle button (per-vessel)
-  const vectorBtnColor = vectorEnabled ? '#0891b2' : (isDark ? '#666' : '#ccc')
+  const vectorBtnColor = vectorEnabled ? '#0891b2' : isDark ? '#666' : '#ccc'
   const vectorBtnBg = vectorEnabled ? '#0891b215' : vectorBtnBgOff
 
   el.innerHTML = `
@@ -606,9 +615,7 @@ export function useAISOverlay() {
     const tcpaMin = -pv / vv
     if (tcpaMin < 0) return null // already diverging
 
-    const cpaNM = Math.sqrt(
-      (dLng + dvx * tcpaMin) ** 2 + (dLat + dvy * tcpaMin) ** 2,
-    )
+    const cpaNM = Math.sqrt((dLng + dvx * tcpaMin) ** 2 + (dLat + dvy * tcpaMin) ** 2)
 
     return { cpa: cpaNM, tcpa: tcpaMin }
   }
@@ -966,7 +973,8 @@ export function useAISOverlay() {
         // Only add if moved significantly or first point
         if (!last || haversineMeters(last.lat, last.lng, v.lat, v.lng) > MOVEMENT_THRESHOLD_M) {
           history.push({ lat: v.lat, lng: v.lng, ts: Date.now() })
-          if (history.length > TRAIL_MAX_POINTS) history.splice(0, history.length - TRAIL_MAX_POINTS)
+          if (history.length > TRAIL_MAX_POINTS)
+            history.splice(0, history.length - TRAIL_MAX_POINTS)
         }
       }
       refreshTrails()

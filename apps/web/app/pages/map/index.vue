@@ -2,22 +2,14 @@
 import '~/assets/css/map-page.css'
 import { useVesselPosition } from '~/composables/useVesselPosition'
 import { useMapVessels } from '~/composables/useMapVessels'
-import {
-  useAISOverlay,
-  CATEGORIES,
-  FILTERABLE_CATEGORIES,
-  type ShipCategoryKey,
-} from '~/composables/useAISOverlay'
+import { useAISOverlay, CATEGORIES, FILTERABLE_CATEGORIES } from '~/composables/useAISOverlay'
 import { useMapFeatures } from '~/composables/useMapFeatures'
 import { useSignalKStore } from '~/stores/signalk'
 import type { MapVesselItem } from '~/types/map'
 
 definePageMeta({ keepalive: true })
 
-usePageSeo(
-  'Live Map',
-  'Real-time vessel position and tracking on an interactive marine chart.',
-)
+usePageSeo('Live Map', 'Real-time vessel position and tracking on an interactive marine chart.')
 
 // Vessel data from SignalK
 const { lat, lng, hasPosition, heading, cog, sog, stw, satellites } = useVesselPosition()
@@ -78,14 +70,29 @@ const hasActiveFilters = computed(() => activeTypeFilters.size > 0)
 // Fullscreen
 const isFullscreen = ref(false)
 function toggleFullscreen() {
-  if (!import.meta.client) return
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen?.()
-    isFullscreen.value = true
-  } else {
-    document.exitFullscreen?.()
-    isFullscreen.value = false
+  if (import.meta.client) {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.()
+      isFullscreen.value = true
+    } else {
+      document.exitFullscreen?.()
+      isFullscreen.value = false
+    }
   }
+}
+
+const mapTypeToggleIcon = computed(() =>
+  mapType.value === 'satellite'
+    ? 'i-lucide-satellite'
+    : mapType.value === 'hybrid'
+      ? 'i-lucide-layers'
+      : 'i-lucide-map',
+)
+
+function cycleMapType() {
+  if (mapType.value === 'standard') setMapType('satellite')
+  else if (mapType.value === 'satellite') setMapType('hybrid')
+  else setMapType('standard')
 }
 
 // Sync fullscreen state with browser
@@ -363,22 +370,12 @@ onUnmounted(() => {
     <!-- Map type + fullscreen (bottom-right) -->
     <div class="map-type-controls">
       <UButton
-        :icon="
-          mapType === 'satellite'
-            ? 'i-lucide-satellite'
-            : mapType === 'hybrid'
-              ? 'i-lucide-layers'
-              : 'i-lucide-map'
-        "
+        :icon="mapTypeToggleIcon"
         color="neutral"
         variant="outline"
         size="sm"
         class="control-btn"
-        @click="
-          setMapType(
-            mapType === 'standard' ? 'satellite' : mapType === 'satellite' ? 'hybrid' : 'standard',
-          )
-        "
+        @click="cycleMapType"
       />
       <UButton
         :icon="isFullscreen ? 'i-lucide-minimize' : 'i-lucide-maximize'"
