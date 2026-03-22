@@ -1,18 +1,17 @@
 <script setup lang="ts">
 import TanksWidgetBase from '../TanksWidgetBase.vue'
-import TankRadialDisplay from '../shared/TankRadialDisplay.vue'
+import TankBarsDisplay from './TankBarsDisplay.vue'
+
+defineProps<{ title: string; tankKey: 'fuel' | 'freshWater' }>()
 </script>
 
 <template>
   <TanksWidgetBase v-slot="{ tanks, getTankColor }">
-    <TankRadialDisplay
-      title="Fresh Water"
-      :tanks="tanks.freshWater"
+    <TankBarsDisplay
+      :title="title"
+      :tanks="tanks[tankKey]"
       :get-tank-color="getTankColor"
+      large-percentage
     />
   </TanksWidgetBase>
 </template>
-
-<style scoped>
-/* Same styles as before for radial view */
-</style>

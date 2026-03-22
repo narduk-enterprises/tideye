@@ -1,32 +1,17 @@
 import { defineStore } from 'pinia'
 import type { UnitPreferences } from '~/utils/unitConversions'
 import type { AISVessel } from '~/types/map'
-
-// Circular buffer for windspeed history
-class CircularBuffer<T> {
-  private buffer: (T | undefined)[]
-  private pointer: number = 0
-
-  constructor(private capacity: number) {
-    this.buffer = new Array<T | undefined>(capacity)
-  }
-
-  push(item: T): void {
-    this.buffer[this.pointer] = item
-    this.pointer = (this.pointer + 1) % this.capacity
-  }
-
-  getAll(): T[] {
-    const validItems = this.buffer.filter((item): item is T => item !== undefined)
-    const splitIndex = validItems.length >= this.capacity ? this.pointer : 0
-    return [...validItems.slice(splitIndex), ...validItems.slice(0, splitIndex)]
-  }
-
-  clear(): void {
-    this.buffer = new Array<T | undefined>(this.capacity)
-    this.pointer = 0
-  }
-}
+import { CircularBuffer } from '~/utils/CircularBuffer'
+import {
+  AIS_FLUSH_INTERVAL_MS,
+  AIS_SUBSCRIPTIONS,
+  BUFFER_SIZE,
+  LOCAL_CHECK_INTERVAL,
+  LOCAL_SERVER,
+  SELF_SUBSCRIPTIONS,
+  STALE_VESSEL_TIMEOUT,
+  UPDATE_INTERVAL,
+} from '~/config/signalk'
 
 export const useSignalKStore = defineStore('signalk', () => {
   const client = shallowRef<any>(null)
@@ -45,7 +30,6 @@ export const useSignalKStore = defineStore('signalk', () => {
   // Accumulate AIS deltas in a plain (non-reactive) Map, then flush
   // to the reactive ref every AIS_FLUSH_INTERVAL_MS. This reduces Vue
   // reactivity triggers from ~380/s to ~0.5/s.
-  const AIS_FLUSH_INTERVAL_MS = 2_000
   const _aisPending = new Map<string, AISVessel>() // non-reactive buffer
   let _aisFlushInterval: ReturnType<typeof setInterval> | null = null
 
@@ -82,10 +66,8 @@ export const useSignalKStore = defineStore('signalk', () => {
   }
 
   // Stale vessel cleanup interval
-  const STALE_VESSEL_TIMEOUT = 15 * 60 * 1000 // 15 minutes
   let staleCleanupInterval: ReturnType<typeof setInterval> | null = null
 
-  const BUFFER_SIZE = 100
   const windSpeedsBuffer = new CircularBuffer<number>(BUFFER_SIZE)
   const timesBuffer = new CircularBuffer<Date>(BUFFER_SIZE)
 
@@ -109,15 +91,9 @@ export const useSignalKStore = defineStore('signalk', () => {
   })
 
   const lastUpdateTime = ref<number>(0)
-  const UPDATE_INTERVAL = 250
   const pathDebounces = new Map<string, number>()
 
   const isLocalSignalK = ref(false)
-
-  // SignalK server endpoints
-  const DEV_SERVER = 'http://signalk-local.tideye.com'
-  const LOCAL_SERVER = 'http://signalk-local.tideye.com'
-  const REMOTE_SERVER = 'https://signalk-public.tideye.com'
 
   let localCheckInterval: ReturnType<typeof setInterval> | null = null
 
@@ -136,69 +112,15 @@ export const useSignalKStore = defineStore('signalk', () => {
     }
   }
 
-  const selectiveSubscriptions: any[] = [
-    { path: 'navigation.position', policy: 'instant' },
-    { path: 'navigation.headingTrue', policy: 'instant' },
-    { path: 'navigation.headingMagnetic', policy: 'instant' },
-    { path: 'navigation.speedThroughWater', policy: 'instant' },
-    { path: 'navigation.speedOverGround', policy: 'instant' },
-    { path: 'navigation.courseOverGroundTrue', policy: 'instant' },
-    { path: 'navigation.courseOverGroundMagnetic', policy: 'instant' },
-    { path: 'navigation.attitude', policy: 'instant' },
-    { path: 'navigation.gnss.*', policy: 'instant' },
-    { path: 'navigation.trip.log', policy: 'instant' },
-    { path: 'navigation.log', policy: 'instant' },
-    { path: 'navigation.magneticVariation', policy: 'instant' },
-    { path: 'navigation.destination.*', policy: 'instant' },
-    { path: 'navigation.anchor.*', policy: 'instant' },
-    { path: 'environment.wind.speedApparent', policy: 'instant' },
-    { path: 'environment.wind.angleApparent', policy: 'instant' },
-    { path: 'environment.wind.speedTrue', policy: 'instant' },
-    { path: 'environment.wind.directionTrue', policy: 'instant' },
-    { path: 'environment.wind.speedOverGround', policy: 'instant' },
-    { path: 'environment.wind.angleTrueGround', policy: 'instant' },
-    { path: 'environment.wind.angleTrueWater', policy: 'instant' },
-    { path: 'environment.wind.directionMagnetic', policy: 'instant' },
-    { path: 'environment.water.temperature', policy: 'instant' },
-    { path: 'environment.water.salinity', policy: 'instant' },
-    { path: 'environment.depth.belowSurface', policy: 'instant' },
-    { path: 'environment.depth.belowKeel', policy: 'instant' },
-    { path: 'environment.depth.belowTransducer', policy: 'instant' },
-    { path: 'environment.outside.*', policy: 'instant' },
-    { path: 'environment.inside.*', policy: 'instant' },
-    { path: 'environment.current.*', policy: 'instant' },
-    { path: 'environment.tide.*', policy: 'instant' },
-    { path: 'environment.weather.*', policy: 'instant' },
-    { path: 'steering.rudderAngle', policy: 'instant' },
-    { path: 'steering.autopilot.*', policy: 'instant' },
-    { path: 'propulsion.*', policy: 'instant' },
-    { path: 'electrical.batteries.*', policy: 'instant' },
-    { path: 'electrical.switches.leopard.*', policy: 'instant' },
-    { path: 'electrical.solar.*', policy: 'instant' },
-    { path: 'electrical.inverters.*', policy: 'instant' },
-    { path: 'electrical.chargers.*', policy: 'instant' },
-    { path: 'tanks.*', policy: 'instant' },
-    { path: 'design.*', policy: 'instant' },
-    { path: 'notifications.*', policy: 'instant' },
-    { path: 'entertainment.*', policy: 'instant' },
-  ]
-
   const subscribeToSelfUpdates = () => {
     // Subscribe to own vessel data
-    const selfSubs = { context: 'vessels.self', subscribe: selectiveSubscriptions }
+    const selfSubs = { context: 'vessels.self', subscribe: [...SELF_SUBSCRIPTIONS] }
     client.value?.subscribe(selfSubs)
 
     // Subscribe to AIS targets (other vessels) — position, name, heading, speed
     const aisSubs = {
       context: 'vessels.*',
-      subscribe: [
-        { path: 'navigation.position', policy: 'instant' },
-        { path: 'navigation.courseOverGroundTrue', policy: 'instant' },
-        { path: 'navigation.speedOverGround', policy: 'instant' },
-        { path: 'navigation.headingTrue', policy: 'instant' },
-        { path: 'name', policy: 'instant' },
-        { path: 'design.aisShipType', policy: 'instant' },
-      ],
+      subscribe: [...AIS_SUBSCRIPTIONS],
     }
     client.value?.subscribe(aisSubs)
 
@@ -470,7 +392,7 @@ export const useSignalKStore = defineStore('signalk', () => {
             await initClient()
           }
         },
-        5 * 60 * 1000,
+        LOCAL_CHECK_INTERVAL,
       )
     }
   }

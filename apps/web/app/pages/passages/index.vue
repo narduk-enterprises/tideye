@@ -4,8 +4,10 @@ import { usePassageFormat } from '~/composables/usePassageFormat'
 
 definePageMeta({ keepalive: true })
 
-const config = useRuntimeConfig()
-const appName = config.public.appName || 'TideEye'
+const { appName } = usePageSeo(
+  'Voyages',
+  'Sailing voyages from your vessel track history with maps and polylines.',
+)
 
 const {
   formatRange,
@@ -168,14 +170,10 @@ watch(
         description: `Sailing voyage (${p.distanceNm.toFixed(0)} nautical miles).`,
       })
     } else {
-      useSeo({
-        title: `${appName} — Voyages`,
-        description: 'Sailing voyages from your vessel track history with maps and polylines.',
-      })
-      useWebPageSchema({
-        name: `${appName} — Voyages`,
-        description: 'Sailing voyages from your vessel track history with maps and polylines.',
-      })
+      usePageSeo(
+        'Voyages',
+        'Sailing voyages from your vessel track history with maps and polylines.',
+      )
     }
   },
   { immediate: true },

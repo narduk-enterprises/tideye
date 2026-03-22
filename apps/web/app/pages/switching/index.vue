@@ -1,14 +1,10 @@
 <script setup lang="ts">
 import '~/assets/css/switching.css'
 
-useSeo({
-  title: 'Switching — TideEye',
-  description: 'Control Leopard/EmpirBus digital switches: lights, pumps, and onboard systems.',
-})
-useWebPageSchema({
-  name: 'Switching — TideEye',
-  description: 'Control Leopard/EmpirBus digital switches: lights, pumps, and onboard systems.',
-})
+usePageSeo(
+  'Switching',
+  'Control Leopard/EmpirBus digital switches: lights, pumps, and onboard systems.',
+)
 </script>
 
 <template>

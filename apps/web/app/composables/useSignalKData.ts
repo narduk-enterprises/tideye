@@ -5,87 +5,46 @@ export function useSignalKData() {
   const signalKStore = useSignalKStore()
   const { vessel } = storeToRefs(signalKStore)
 
-  const getBatteryData = () => computed(() => vessel.value?.electrical?.batteries?.tideyeBmv)
-
-  const getSolarData = () => computed(() => vessel.value?.electrical?.solar)
-
-  const getInverterData = () => computed(() => vessel.value?.electrical?.inverters)
-
-  const getChargerData = () => computed(() => vessel.value?.electrical?.chargers)
-
-  const getWindData = () => computed(() => vessel.value?.environment?.wind)
-
-  const getTankData = () =>
-    computed(() => ({
-      freshWater: vessel.value?.tanks?.freshWater,
-      fuel: vessel.value?.tanks?.fuel,
-    }))
-
-  const getWaterTempData = () => computed(() => vessel.value?.environment?.water?.temperature)
-
-  const getDepthData = () => computed(() => vessel.value?.environment?.depth)
-
-  const getEntertainmentData = () => computed(() => vessel.value?.entertainment)
-
-  const getNavigationData = () => computed(() => vessel.value?.navigation)
-
-  const getSteeringData = () => computed(() => vessel.value?.steering)
-
-  const getPropulsionData = () => computed(() => vessel.value?.propulsion)
-
-  const getAirTemperatureData = () =>
-    computed(() => ({
-      outside: vessel.value?.environment?.outside?.temperature,
-      inside: vessel.value?.environment?.inside?.temperature,
-    }))
-
-  const getBarometricPressureData = () =>
-    computed(() => ({
-      outside: vessel.value?.environment?.outside?.pressure,
-      inside: vessel.value?.environment?.inside?.pressure,
-    }))
-
-  const getCurrentData = () => computed(() => vessel.value?.environment?.current)
-
-  const getTideData = () => computed(() => vessel.value?.environment?.tide)
-
-  const getGNSSData = () => computed(() => vessel.value?.navigation?.gnss)
-
-  const getAttitudeData = () => computed(() => vessel.value?.navigation?.attitude)
-
-  const getNotificationsData = () => computed(() => vessel.value?.notifications)
-
-  const getDesignData = () => computed(() => vessel.value?.design)
-
-  const getEnvironmentData = () =>
-    computed(() => ({
-      outside: vessel.value?.environment?.outside,
-      inside: vessel.value?.environment?.inside,
-      weather: vessel.value?.environment?.weather,
-    }))
+  /** Factory: creates a getter returning a computed over a vessel sub-path. */
+  function accessor<T>(fn: (v: any) => T): () => ComputedRef<T | undefined> {
+    return () => computed(() => (vessel.value ? fn(vessel.value) : undefined))
+  }
 
   return {
     vessel,
-    getBatteryData,
-    getSolarData,
-    getInverterData,
-    getChargerData,
-    getWindData,
-    getTankData,
-    getWaterTempData,
-    getDepthData,
-    getEntertainmentData,
-    getNavigationData,
-    getSteeringData,
-    getPropulsionData,
-    getAirTemperatureData,
-    getBarometricPressureData,
-    getCurrentData,
-    getTideData,
-    getGNSSData,
-    getAttitudeData,
-    getNotificationsData,
-    getDesignData,
-    getEnvironmentData,
+    getBatteryData: accessor((v) => v.electrical?.batteries?.tideyeBmv),
+    getSolarData: accessor((v) => v.electrical?.solar),
+    getInverterData: accessor((v) => v.electrical?.inverters),
+    getChargerData: accessor((v) => v.electrical?.chargers),
+    getWindData: accessor((v) => v.environment?.wind),
+    getTankData: accessor((v) => ({
+      freshWater: v.tanks?.freshWater,
+      fuel: v.tanks?.fuel,
+    })),
+    getWaterTempData: accessor((v) => v.environment?.water?.temperature),
+    getDepthData: accessor((v) => v.environment?.depth),
+    getEntertainmentData: accessor((v) => v.entertainment),
+    getNavigationData: accessor((v) => v.navigation),
+    getSteeringData: accessor((v) => v.steering),
+    getPropulsionData: accessor((v) => v.propulsion),
+    getAirTemperatureData: accessor((v) => ({
+      outside: v.environment?.outside?.temperature,
+      inside: v.environment?.inside?.temperature,
+    })),
+    getBarometricPressureData: accessor((v) => ({
+      outside: v.environment?.outside?.pressure,
+      inside: v.environment?.inside?.pressure,
+    })),
+    getCurrentData: accessor((v) => v.environment?.current),
+    getTideData: accessor((v) => v.environment?.tide),
+    getGNSSData: accessor((v) => v.navigation?.gnss),
+    getAttitudeData: accessor((v) => v.navigation?.attitude),
+    getNotificationsData: accessor((v) => v.notifications),
+    getDesignData: accessor((v) => v.design),
+    getEnvironmentData: accessor((v) => ({
+      outside: v.environment?.outside,
+      inside: v.environment?.inside,
+      weather: v.environment?.weather,
+    })),
   }
 }
