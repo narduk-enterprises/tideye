@@ -1,5 +1,5 @@
 /**
- * App-specific ESLint overrides for TideEye.
+ * App-specific ESLint overrides for Tideye.
  * Ported dashboard widget components use raw HTML elements, inline SVGs,
  * and hex colors from the original tideye-dashboard codebase. These will
  * be incrementally migrated to Nuxt UI / design-token equivalents.

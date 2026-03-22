@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * TideEye Application Shell
- * Overrides the layer's default app.vue to provide TideEye-specific navigation.
+ * Tideye Application Shell
+ * Overrides the layer's default app.vue to provide Tideye-specific navigation.
  */
 const route = useRoute()
 
@@ -40,9 +40,7 @@ const activeNavigation = computed(() =>
             <!-- Logo -->
             <NuxtLink to="/" class="flex items-center gap-2 text-default no-underline">
               <UIcon name="i-lucide-waves" class="text-xl text-primary sm:text-2xl" />
-              <span class="font-display text-base font-bold tracking-tight sm:text-lg"
-                >TideEye</span
-              >
+              <span class="font-display text-base font-bold tracking-tight sm:text-lg">Tideye</span>
             </NuxtLink>
 
             <!-- Desktop Navigation -->

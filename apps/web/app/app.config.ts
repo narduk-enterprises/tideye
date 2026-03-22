@@ -6,7 +6,7 @@ export default defineAppConfig({
     },
   },
   tideye: {
-    name: 'TideEye',
+    name: 'Tideye',
     description: 'Marine telemetry and vessel monitoring platform',
   },
 })

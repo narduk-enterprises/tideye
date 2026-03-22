@@ -15,17 +15,17 @@ async function waitForHydration(page: import('@playwright/test').Page) {
   await page.waitForTimeout(500)
 }
 
-test.describe('TideEye — Home Page', () => {
+test.describe('Tideye — Home Page', () => {
   test('returns 200', async ({ page }) => {
     const response = await page.goto(`${BASE_URL}/`)
     expect(response?.status()).toBe(200)
   })
 
-  test('renders hero with TideEye branding', async ({ page }) => {
+  test('renders hero with Tideye branding', async ({ page }) => {
     await page.goto(`${BASE_URL}/`)
     await waitForHydration(page)
     await expect(page).toHaveTitle(/Tideye/)
-    await expect(page.getByText('TideEye').first()).toBeVisible()
+    await expect(page.getByText('Tideye').first()).toBeVisible()
     await expect(page.getByText('Open Dashboard').first()).toBeVisible()
   })
 
@@ -53,7 +53,7 @@ test.describe('TideEye — Home Page', () => {
   })
 })
 
-test.describe('TideEye — Navigation', () => {
+test.describe('Tideye — Navigation', () => {
   test('shows nav links', async ({ page }) => {
     await page.goto(`${BASE_URL}/`)
     await waitForHydration(page)
@@ -69,7 +69,7 @@ test.describe('TideEye — Navigation', () => {
   })
 })
 
-test.describe('TideEye — Dashboard', () => {
+test.describe('Tideye — Dashboard', () => {
   test('returns 200', async ({ page }) => {
     const response = await page.goto(`${BASE_URL}/dashboard`)
     expect(response?.status()).toBe(200)
@@ -78,7 +78,7 @@ test.describe('TideEye — Dashboard', () => {
   test('has correct page title', async ({ page }) => {
     await page.goto(`${BASE_URL}/dashboard`)
     await waitForHydration(page)
-    await expect(page).toHaveTitle(/Dashboard.*TideEye/)
+    await expect(page).toHaveTitle(/Dashboard.*Tideye/)
   })
 
   test('dashboard page contains expected HTML structure', async ({ page }) => {
@@ -90,7 +90,7 @@ test.describe('TideEye — Dashboard', () => {
   })
 })
 
-test.describe('TideEye — API', () => {
+test.describe('Tideye — API', () => {
   test('health endpoint returns 200', async ({ page }) => {
     const response = await page.goto(`${BASE_URL}/api/health`)
     expect(response?.status()).toBe(200)

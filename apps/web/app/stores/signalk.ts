@@ -113,27 +113,163 @@ export const useSignalKStore = defineStore('signalk', () => {
   const pathDebounces = new Map<string, number>()
 
   const isLocalSignalK = ref(false)
+  const activeSignalKBaseUrl = ref('https://signalk-public.tideye.com')
+
+  type SignalKEndpointKind = 'dev' | 'local' | 'remote'
+
+  interface SignalKEndpoint {
+    kind: SignalKEndpointKind
+    label: string
+    hostname: string
+    port: number
+    useTLS: boolean
+    baseUrl: string
+  }
 
   // SignalK server endpoints
-  const DEV_SERVER = 'http://signalk-local.tideye.com'
-  const LOCAL_SERVER = 'http://signalk-local.tideye.com'
+  const DEV_SERVER = 'http://bee.tideye.com:3000'
+  const LOCAL_HTTP_SERVER = 'http://signalk-local.tideye.com'
+  const LOCAL_HTTPS_SERVER = 'https://signalk-local.tideye.com'
   const REMOTE_SERVER = 'https://signalk-public.tideye.com'
+  const CONNECT_TIMEOUT_MS = 6_000
+  const RECONNECT_DELAY_MS = 5_000
 
-  let localCheckInterval: ReturnType<typeof setInterval> | null = null
+  let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
+  let initInFlight: Promise<void> | null = null
+  let allowReconnect = false
 
-  async function isLocalServerAvailable() {
-    try {
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 2000)
-      const response = await fetch(`${LOCAL_SERVER}/signalk/v1/api/`, {
-        method: 'GET',
-        signal: controller.signal,
-      })
-      clearTimeout(timeout)
-      return response.ok
-    } catch {
-      return false
+  function getSignalKEndpoints(): SignalKEndpoint[] {
+    if (import.meta.dev) {
+      return [
+        {
+          kind: 'dev',
+          label: 'dev',
+          hostname: 'bee.tideye.com',
+          port: 3000,
+          useTLS: false,
+          baseUrl: DEV_SERVER,
+        },
+      ]
     }
+
+    const localEndpoint: SignalKEndpoint =
+      window.location.protocol === 'https:'
+        ? {
+            kind: 'local',
+            label: 'local',
+            hostname: 'signalk-local.tideye.com',
+            port: 443,
+            useTLS: true,
+            baseUrl: LOCAL_HTTPS_SERVER,
+          }
+        : {
+            kind: 'local',
+            label: 'local',
+            hostname: 'signalk-local.tideye.com',
+            port: 80,
+            useTLS: false,
+            baseUrl: LOCAL_HTTP_SERVER,
+          }
+
+    return [
+      localEndpoint,
+      {
+        kind: 'remote',
+        label: 'internet',
+        hostname: 'signalk-public.tideye.com',
+        port: 443,
+        useTLS: true,
+        baseUrl: REMOTE_SERVER,
+      },
+    ]
+  }
+
+  async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
+    let timeout: ReturnType<typeof setTimeout> | undefined
+
+    try {
+      return await Promise.race([
+        promise,
+        new Promise<never>((_, reject) => {
+          timeout = setTimeout(() => reject(new Error(message)), timeoutMs)
+        }),
+      ])
+    } finally {
+      if (timeout) {
+        clearTimeout(timeout)
+      }
+    }
+  }
+
+  function clearReconnectTimer() {
+    if (reconnectTimeout) {
+      clearTimeout(reconnectTimeout)
+      reconnectTimeout = null
+    }
+  }
+
+  function stopLiveIntervals() {
+    if (staleCleanupInterval) {
+      clearInterval(staleCleanupInterval)
+      staleCleanupInterval = null
+    }
+    if (_aisFlushInterval) {
+      clearInterval(_aisFlushInterval)
+      _aisFlushInterval = null
+    }
+  }
+
+  function resetSignalKDataState() {
+    api.value = null
+    vessel.value = null
+    isLocalSignalK.value = false
+    activeSignalKBaseUrl.value = REMOTE_SERVER
+    _aisPending.clear()
+    _aisMetadataCache.clear()
+    otherVessels.value = new Map()
+    windSpeedsBuffer.clear()
+    timesBuffer.clear()
+    totalUpdates.value = 0
+    lastUpdateTime.value = 0
+    pathDebounces.clear()
+  }
+
+  async function disconnectClient(target: any) {
+    if (!target) return
+    target.cleanupListeners?.()
+    await target.disconnect?.()
+  }
+
+  function scheduleReconnect(reason?: unknown) {
+    if (!allowReconnect || reconnectTimeout || !import.meta.client) {
+      return
+    }
+
+    if (reason) {
+      console.warn('SignalK connection lost, retrying with fallback', reason)
+    }
+
+    reconnectTimeout = setTimeout(() => {
+      reconnectTimeout = null
+      void initClient()
+    }, RECONNECT_DELAY_MS)
+  }
+
+  function bindConnectionLifecycle(nextClient: any, endpoint: SignalKEndpoint) {
+    const handleConnectionLoss = (reason?: unknown) => {
+      if (client.value !== nextClient) {
+        return
+      }
+
+      client.value = null
+      stopLiveIntervals()
+      resetSignalKDataState()
+      void disconnectClient(nextClient)
+      scheduleReconnect(reason || `${endpoint.label} disconnected`)
+    }
+
+    nextClient.on('disconnect', () => handleConnectionLoss(`${endpoint.label} disconnected`))
+    nextClient.on('error', (error: unknown) => handleConnectionLoss(error))
   }
 
   const selectiveSubscriptions: any[] = [
@@ -332,15 +468,9 @@ export const useSignalKStore = defineStore('signalk', () => {
   const fetchAISNames = async () => {
     if (!api.value) return
     try {
-      // SignalK REST API returns all vessels keyed by context
-      const isDev = import.meta.dev
-      const baseUrl = isDev
-        ? 'http://bee.tideye.com:3000'
-        : `https://${isLocalSignalK.value ? 'signalk-local' : 'signalk-public'}.tideye.com`
-
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 10_000)
-      const resp = await fetch(`${baseUrl}/signalk/v1/api/vessels`, {
+      const resp = await fetch(`${activeSignalKBaseUrl.value}/signalk/v1/api/vessels`, {
         signal: controller.signal,
       })
       clearTimeout(timeout)
@@ -404,74 +534,111 @@ export const useSignalKStore = defineStore('signalk', () => {
     }
   }
 
+  async function connectToEndpoint(
+    endpoint: SignalKEndpoint,
+    Client: any,
+    Vessel: any,
+  ): Promise<boolean> {
+    const nextClient = new Client({
+      hostname: endpoint.hostname,
+      port: endpoint.port,
+      useTLS: endpoint.useTLS,
+      notifications: false,
+      reconnect: false,
+      autoConnect: false,
+      maxRetries: 1,
+    })
+
+    try {
+      await withTimeout(
+        nextClient.connect(),
+        CONNECT_TIMEOUT_MS,
+        `Timed out connecting to ${endpoint.label} SignalK`,
+      )
+
+      const nextApi = await withTimeout(
+        nextClient.API(),
+        CONNECT_TIMEOUT_MS,
+        `Timed out preparing ${endpoint.label} SignalK API`,
+      )
+
+      const response = await withTimeout(
+        nextApi.self(),
+        CONNECT_TIMEOUT_MS,
+        `Timed out loading ${endpoint.label} SignalK vessel data`,
+      )
+
+      if (!response) {
+        throw new Error(`SignalK ${endpoint.label} did not return vessel data`)
+      }
+
+      bindConnectionLifecycle(nextClient, endpoint)
+
+      client.value = nextClient
+      api.value = nextApi
+      vessel.value = new Vessel(response, unitPreferences.value)
+      activeSignalKBaseUrl.value = endpoint.baseUrl
+      isLocalSignalK.value = endpoint.kind === 'local' || endpoint.kind === 'dev'
+
+      subscribeToSelfUpdates()
+      startStaleCleanup()
+      _startAISFlush()
+      void fetchAISNames()
+
+      return true
+    } catch (error) {
+      await disconnectClient(nextClient)
+      throw error
+    }
+  }
+
   const initClient = async () => {
     // Only runs on the client side
     if (!import.meta.client) return
 
-    // Dynamically import SignalK client
-    const { Client } = await import('@signalk/client')
-    const { Vessel } = await import('~/types/signalk/vessel')
-
-    // In dev, connect directly to bee.tideye.com:3000 (plain HTTP)
-    const isDev = import.meta.dev
-    let hostname: string
-    let port: number
-    let useTLS: boolean
-
-    if (isDev) {
-      hostname = 'bee.tideye.com'
-      port = 3000
-      useTLS = false
-      isLocalSignalK.value = true
-    } else {
-      const isLocal = await isLocalServerAvailable()
-      hostname = isLocal ? 'signalk-local.tideye.com' : 'signalk-public.tideye.com'
-      port = 443
-      useTLS = true
-      isLocalSignalK.value = isLocal
+    if (initInFlight) {
+      return initInFlight
     }
 
-    try {
-      client.value = new Client({
-        hostname,
-        port,
-        useTLS,
-        notifications: false,
-        reconnect: true,
-        autoConnect: true,
-      })
+    allowReconnect = true
 
-      client.value.on('connect', () => {
-        subscribeToSelfUpdates()
-        startStaleCleanup()
-        _startAISFlush()
-      })
+    initInFlight = (async () => {
+      clearReconnectTimer()
+      stopLiveIntervals()
 
-      await client.value.connect()
-      api.value = await client.value.API()
+      const previousClient = client.value
+      client.value = null
+      resetSignalKDataState()
+      await disconnectClient(previousClient)
 
-      const response = await api.value.self()
-      if (response) {
-        vessel.value = new Vessel(response, unitPreferences.value)
+      const { Client } = await import('@signalk/client')
+      const { Vessel } = await import('~/types/signalk/vessel')
+
+      const endpoints = getSignalKEndpoints()
+      let lastError: unknown = null
+
+      for (const [index, endpoint] of endpoints.entries()) {
+        try {
+          await connectToEndpoint(endpoint, Client, Vessel)
+          return
+        } catch (error) {
+          lastError = error
+          const hasFallback = index < endpoints.length - 1
+
+          if (hasFallback) {
+            console.warn(`SignalK ${endpoint.label} endpoint unavailable, trying fallback`, error)
+          }
+        }
       }
 
-      // Fetch vessel names from REST API (AIS names rarely arrive via deltas)
-      fetchAISNames()
-    } catch (error) {
-      console.warn('SignalK connection error:', error)
-    }
+      console.warn('SignalK connection error:', lastError)
+      scheduleReconnect(lastError)
+    })()
 
-    // In production, periodically check for local server if using remote
-    if (!isDev && !isLocalSignalK.value) {
-      localCheckInterval = setInterval(
-        async () => {
-          if (await isLocalServerAvailable()) {
-            await cleanup()
-            await initClient()
-          }
-        },
-        5 * 60 * 1000,
-      )
+    try {
+      await initInFlight
+    } finally {
+      initInFlight = null
     }
   }
 
@@ -496,31 +663,14 @@ export const useSignalKStore = defineStore('signalk', () => {
   }
 
   const cleanup = async () => {
-    if (localCheckInterval) {
-      clearInterval(localCheckInterval)
-      localCheckInterval = null
-    }
-    if (staleCleanupInterval) {
-      clearInterval(staleCleanupInterval)
-      staleCleanupInterval = null
-    }
-    if (_aisFlushInterval) {
-      clearInterval(_aisFlushInterval)
-      _aisFlushInterval = null
-    }
-    _aisPending.clear()
-    if (client.value) {
-      client.value.cleanupListeners?.()
-      await client.value.disconnect?.()
-      client.value = null
-    }
-    api.value = null
-    vessel.value = null
-    otherVessels.value.clear()
-    windSpeedsBuffer.clear()
-    timesBuffer.clear()
-    totalUpdates.value = 0
-    lastUpdateTime.value = 0
+    allowReconnect = false
+    clearReconnectTimer()
+    stopLiveIntervals()
+
+    const activeClient = client.value
+    client.value = null
+    resetSignalKDataState()
+    await disconnectClient(activeClient)
   }
 
   return {

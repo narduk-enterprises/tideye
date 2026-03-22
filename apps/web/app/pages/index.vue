@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const config = useRuntimeConfig()
-const appName = config.public.appName || 'TideEye'
+const appName = config.public.appName || 'Tideye'
 
 useSeo({
   title: `${appName} — Marine Telemetry Platform`,

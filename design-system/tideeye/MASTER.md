@@ -6,7 +6,7 @@
 
 ---
 
-**Project:** TideEye **Generated:** 2026-03-21 19:40:13 **Category:** Smart
+**Project:** Tideye **Generated:** 2026-03-21 19:40:13 **Category:** Smart
 Home/IoT Dashboard
 
 ---

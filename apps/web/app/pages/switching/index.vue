@@ -2,11 +2,11 @@
 import '~/assets/css/switching.css'
 
 useSeo({
-  title: 'Switching — TideEye',
+  title: 'Switching — Tideye',
   description: 'Control Leopard/EmpirBus digital switches: lights, pumps, and onboard systems.',
 })
 useWebPageSchema({
-  name: 'Switching — TideEye',
+  name: 'Switching — Tideye',
   description: 'Control Leopard/EmpirBus digital switches: lights, pumps, and onboard systems.',
 })
 </script>

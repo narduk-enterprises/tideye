@@ -13,7 +13,7 @@ type CamTabItem = {
 }
 
 const config = useRuntimeConfig()
-const appName = config.public.appName || 'TideEye'
+const appName = config.public.appName || 'Tideye'
 
 const STORAGE_KEY = 'tideye:cams-tab'
 

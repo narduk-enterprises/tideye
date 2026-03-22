@@ -34,6 +34,11 @@ logs
 # Test artifacts
 playwright-report/
 test-results/
+# Ad hoc Playwright screenshots / local debug output
+output/
+
+# Generated tool output (passage-playback export, import-local-d1.sql, etc.)
+tools/.generated/
 
 # ESLint plugin build artifacts (rebuilt via `pnpm run build:plugins`)
 packages/eslint-config/*/dist/
