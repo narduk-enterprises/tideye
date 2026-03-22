@@ -242,11 +242,18 @@ async function fetchWithTimeout(url: string, timeoutMs: number) {
 }
 
 let txnCounter = 0x30
+let sequenceBaseCounter = 0x00
 
 function nextTxn(): number {
   const txn = txnCounter
   txnCounter = (txnCounter + 1) & 0xff
   return txn
+}
+
+function nextSequenceBase(): number {
+  const sequenceBase = sequenceBaseCounter
+  sequenceBaseCounter = (sequenceBaseCounter + 0x20) & 0xff
+  return sequenceBase
 }
 
 export function buildToggleCommand(switchId: string): { lines: string[]; txn: number } {
@@ -255,13 +262,14 @@ export function buildToggleCommand(switchId: string): { lines: string[]; txn: nu
   if (!def.writable) throw new Error(`Switch ${switchId} is read-only`)
 
   const txn = nextTxn()
-  const line1 = '1DEF0004 00 13 30 99 FF FF 82 1A'
-  const line2 = `1DEF0004 01 06 FE FF FF 02 ${txn.toString(16).toUpperCase().padStart(2, '0')} 00`
+  const sequenceBase = nextSequenceBase()
+  const line1 = `1DEF0004 ${sequenceBase.toString(16).toUpperCase().padStart(2, '0')} 13 30 99 FF FF 82 1A`
+  const line2 = `1DEF0004 ${((sequenceBase + 1) & 0xff).toString(16).toUpperCase().padStart(2, '0')} 06 FE FF FF 02 ${txn.toString(16).toUpperCase().padStart(2, '0')} 00`
   const codeHex = def.commandCode.toString(16).toUpperCase().padStart(2, '0')
   const payloadHex = def.payload
     .map((byte) => byte.toString(16).toUpperCase().padStart(2, '0'))
     .join(' ')
-  const line3 = `1DEF0004 02 01 05 ${codeHex} ${payloadHex}`
+  const line3 = `1DEF0004 ${((sequenceBase + 2) & 0xff).toString(16).toUpperCase().padStart(2, '0')} 01 05 ${codeHex} ${payloadHex}`
 
   return { lines: [line1, line2, line3], txn }
 }
@@ -297,40 +305,7 @@ export async function sendCommand(
 
   return new Promise((resolve) => {
     const socket = createSocket('udp4')
-    let _linesSent = 0
-
-    const sendLine = (index: number) => {
-      if (index >= command.lines.length) {
-        socket.close()
-        resolve({
-          success: true,
-          switchId,
-          txn: command.txn,
-          timestamp,
-          rawLines: command.lines,
-        })
-        return
-      }
-
-      const buffer = Buffer.from(command.lines[index] + '\r\n', 'ascii')
-      socket.send(buffer, 0, buffer.length, port, host, (error) => {
-        if (error) {
-          socket.close()
-          resolve({
-            success: false,
-            switchId,
-            txn: command.txn,
-            timestamp,
-            rawLines: command.lines,
-            error: error.message,
-          })
-          return
-        }
-
-        _linesSent++
-        setTimeout(() => sendLine(index + 1), 15)
-      })
-    }
+    const payload = Buffer.from(command.lines.join('\r\n') + '\r\n', 'ascii')
 
     socket.on('error', (error) => {
       socket.close()
@@ -344,6 +319,27 @@ export async function sendCommand(
       })
     })
 
-    sendLine(0)
+    socket.send(payload, 0, payload.length, port, host, (error) => {
+      socket.close()
+      if (error) {
+        resolve({
+          success: false,
+          switchId,
+          txn: command.txn,
+          timestamp,
+          rawLines: command.lines,
+          error: error.message,
+        })
+        return
+      }
+
+      resolve({
+        success: true,
+        switchId,
+        txn: command.txn,
+        timestamp,
+        rawLines: command.lines,
+      })
+    })
   })
 }

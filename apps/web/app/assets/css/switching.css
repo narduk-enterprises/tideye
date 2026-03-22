@@ -1,121 +1,513 @@
-.switch-control {
+/* MFD row: beveled pad + caption rail (Raymarine-style hierarchy) */
+.switch-control--plotter {
   display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0.85rem 1rem;
+  padding: 0.55rem 0.65rem;
+  min-height: unset;
+  border-radius: 0.2rem;
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--color-bg-elevated) 55%, black 45%),
+    color-mix(in srgb, var(--color-bg-elevated) 75%, black 25%)
+  );
+  border: 1px solid color-mix(in srgb, var(--color-border-default) 35%, white 8%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 6%, transparent),
+    0 4px 14px color-mix(in srgb, black 45%, transparent);
+  transition:
+    border-color var(--transition-base) ease,
+    box-shadow var(--transition-base) ease,
+    background var(--transition-base) ease;
+}
+
+.switch-control--plotter.switch-control--on {
+  border-color: color-mix(in srgb, var(--color-success-500) 42%, var(--color-border-default));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--color-success-400) 15%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--color-success-500) 22%, transparent),
+    0 6px 18px color-mix(in srgb, black 40%, transparent);
+}
+
+.switch-control--plotter.switch-control--unknown {
+  border-color: color-mix(in srgb, var(--color-warning-500) 38%, var(--color-border-default));
+}
+
+.switch-control--plotter.switch-control--readonly {
+  opacity: 0.82;
+}
+
+.switch-control--plotter:not(.switch-control--readonly):hover {
+  border-color: color-mix(in srgb, var(--color-text-muted) 55%, var(--color-border-default));
+}
+
+.switch-control--loading {
+  pointer-events: none;
+}
+
+.switch-plotter-pad {
+  display: flex !important;
+  flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem 1.25rem;
-  border-radius: var(--radius-card);
-  background: var(--color-bg-elevated);
-  border: 1px solid var(--color-border-default);
-  transition: all var(--transition-base) ease;
+  justify-content: center;
+  gap: 0.3rem;
+  width: 5.1rem;
+  min-width: 5.1rem;
+  min-height: 5.35rem;
+  padding: 0.45rem 0.35rem 0.4rem !important;
+  border-radius: 0.2rem !important;
+  border: 1px solid color-mix(in srgb, var(--color-border-default) 40%, white 6%) !important;
+  background: linear-gradient(
+    185deg,
+    color-mix(in srgb, var(--color-bg-muted) 35%, black 65%),
+    color-mix(in srgb, black 55%, var(--color-bg-elevated))
+  ) !important;
+  box-shadow:
+    inset 0 2px 3px color-mix(in srgb, black 35%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, white 8%, transparent),
+    0 2px 4px color-mix(in srgb, black 50%, transparent) !important;
+  color: var(--color-text-default) !important;
 }
 
-.switch-control--on {
-  border-color: var(--color-primary-500);
-  background: color-mix(in srgb, var(--color-primary-500) 5%, var(--color-bg-elevated));
+.switch-plotter-pad:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-text-muted) 50%, transparent) !important;
 }
 
-.switch-control--readonly {
-  opacity: 0.7;
+.switch-plotter-pad:disabled {
+  cursor: default;
+  opacity: 0.78;
 }
 
-.switch-control:not(.switch-control--readonly):hover {
-  border-color: var(--color-primary-400);
-  box-shadow: var(--shadow-card);
+.switch-plotter-pad--on {
+  border-color: color-mix(in srgb, var(--color-success-500) 55%, transparent) !important;
+  box-shadow:
+    inset 0 2px 4px color-mix(in srgb, black 40%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--color-success-400) 18%, transparent),
+    0 0 12px color-mix(in srgb, var(--color-success-500) 25%, transparent) !important;
 }
 
-.switch-icon {
+.switch-plotter-pad__pictogram {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 0.75rem;
-  background: var(--color-bg-muted);
-  flex-shrink: 0;
+  min-height: 2rem;
 }
 
-.switch-info {
+.switch-plotter-pad__pictogram-icon {
+  width: 1.7rem;
+  height: 1.7rem;
+  color: color-mix(in srgb, var(--color-text-default) 88%, white 12%);
+  opacity: 0.92;
+}
+
+.switch-plotter-pad__pictogram-icon--red {
+  color: var(--color-error-500);
+  opacity: 1;
+}
+
+.switch-plotter-pad--on
+  .switch-plotter-pad__pictogram-icon:not(.switch-plotter-pad__pictogram-icon--red) {
+  color: color-mix(in srgb, var(--color-success-300) 70%, var(--color-text-default) 30%);
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--color-success-500) 45%, transparent));
+}
+
+.switch-plotter-pad__pictogram-icon--spin {
+  animation: switching-plotter-spin 0.85s linear infinite;
+}
+
+@keyframes switching-plotter-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.switch-plotter-pad__led {
+  width: 0.52rem;
+  height: 0.52rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-text-muted) 30%, black 70%);
+  box-shadow: inset 0 1px 4px color-mix(in srgb, black 60%, transparent);
+}
+
+.switch-plotter-pad--on .switch-plotter-pad__led {
+  background: color-mix(in srgb, var(--color-success-400) 80%, white 20%);
+  box-shadow:
+    0 0 10px color-mix(in srgb, var(--color-success-500) 65%, transparent),
+    inset 0 -1px 2px color-mix(in srgb, var(--color-success-700) 35%, transparent);
+}
+
+.switch-plotter-pad--unknown .switch-plotter-pad__led {
+  background: color-mix(in srgb, var(--color-warning-500) 55%, black 45%);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--color-warning-500) 40%, transparent);
+}
+
+.switch-plotter-pad__state {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text-muted) 70%, white 30%);
+  line-height: 1;
+  min-height: 0.75rem;
+}
+
+.switch-plotter-pad--on .switch-plotter-pad__state {
+  color: color-mix(in srgb, var(--color-success-400) 75%, white 25%);
+}
+
+.switch-plotter-rail {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0;
 }
 
-.switch-label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--color-text-default);
-}
-
-.switch-status {
-  font-size: 0.75rem;
-  font-weight: 600;
+.switch-plotter-rail__label {
+  font-size: clamp(0.62rem, 1.9vw, 0.72rem);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1.35;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  color: color-mix(in srgb, var(--color-text-muted) 92%, white 8%);
 }
 
-.switch-action {
-  flex-shrink: 0;
+.switch-plotter-rail__lock {
+  display: inline-flex;
+  align-items: center;
 }
+
+.switch-plotter-rail__lock-icon {
+  width: 0.95rem;
+  height: 0.95rem;
+  color: var(--color-text-dimmed);
+}
+
+@media (max-width: 380px) {
+  .switch-plotter-pad {
+    width: 4.65rem;
+    min-width: 4.65rem;
+    min-height: 5rem;
+  }
+
+  .switch-plotter-pad__pictogram-icon {
+    width: 1.45rem;
+    height: 1.45rem;
+  }
+}
+
+/* ——— Switch panel (lights / pumps) ——— */
 
 .switch-panel {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
-  max-width: 48rem;
+  gap: 1.5rem;
+  max-width: 64rem;
   margin: 0 auto;
 }
 
-.panel-error {
+.panel-inline-status {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius-card);
-  background: color-mix(in srgb, var(--color-warning-500) 10%, var(--color-bg-elevated));
-  border: 1px solid var(--color-warning-500);
+  gap: 0.5rem;
+  padding: 0 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.panel-inline-status--error {
+  color: var(--color-error-500);
 }
 
 .switch-section {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-radius: calc(var(--radius-card) + 0.25rem);
+  border: 1px solid color-mix(in srgb, var(--color-border-default) 70%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-bg-elevated) 92%, white 8%),
+    var(--color-bg-elevated)
+  );
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--color-text-default) 8%, transparent);
+}
+
+.switch-section--mfd {
+  border-radius: 0.28rem;
+  background: linear-gradient(
+    175deg,
+    color-mix(in srgb, var(--color-bg-elevated) 48%, black 52%),
+    color-mix(in srgb, var(--color-bg-elevated) 72%, black 28%)
+  );
+  border: 1px solid color-mix(in srgb, var(--color-border-default) 28%, white 5%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 5%, transparent),
+    0 12px 32px color-mix(in srgb, black 38%, transparent);
+}
+
+.switch-section--mfd .section-title {
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: color-mix(in srgb, var(--color-text-muted) 95%, white 5%);
 }
 
 .section-header {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0 0.25rem;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.section-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
 }
 
 .section-title {
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 1.05rem;
+  font-weight: 700;
   color: var(--color-text-default);
   margin: 0;
 }
 
-.switch-grid {
+.section-summary {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.section-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.55rem 0.28rem 0.45rem;
+  border-radius: 999px;
+  background: var(--color-bg-muted);
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  border: 1px solid color-mix(in srgb, var(--color-border-default) 45%, transparent);
+}
+
+.section-stat__icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.section-stat__n {
+  font-variant-numeric: tabular-nums;
+  min-width: 1ch;
+  text-align: center;
+}
+
+.section-stat--active {
+  background: color-mix(in srgb, var(--color-success-500) 12%, var(--color-bg-elevated));
+  color: var(--color-success-600);
+  border-color: color-mix(in srgb, var(--color-success-500) 28%, transparent);
+}
+
+.section-stat--unknown {
+  background: color-mix(in srgb, var(--color-warning-500) 14%, var(--color-bg-elevated));
+  color: var(--color-warning-700);
+  border-color: color-mix(in srgb, var(--color-warning-500) 30%, transparent);
+}
+
+.switch-grid {
+  display: grid;
+  gap: 0.65rem 0.75rem;
+}
+
+.switch-grid--lights {
+  grid-template-columns: 1fr;
 }
 
 @media (min-width: 640px) {
-  .switch-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.75rem;
+  .switch-grid--lights {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-.panel-footer {
+@media (min-width: 900px) {
+  .switch-grid--lights {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.switch-grid--pumps {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 720px) {
+  .switch-grid--pumps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 719px) {
+  .switch-section {
+    padding: 1rem;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ——— Switching page chrome ——— */
+
+.switching-page {
+  min-height: calc(100vh - 4rem);
+  padding: 1.5rem;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 120px);
+  background:
+    radial-gradient(
+      circle at top left,
+      color-mix(in srgb, var(--color-primary-500) 10%, transparent),
+      transparent 26rem
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-bg-default) 94%, white 6%),
+      var(--color-bg-default)
+    );
+}
+
+.switching-page--mfd {
+  background:
+    radial-gradient(
+      ellipse 90% 45% at 50% 0%,
+      color-mix(in srgb, var(--color-primary-500) 7%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(
+      185deg,
+      color-mix(in srgb, var(--color-bg-default) 42%, black 58%),
+      var(--color-bg-default)
+    );
+}
+
+.switching-page .page-header {
+  max-width: 64rem;
+  margin: 0 auto 1.5rem;
+  padding: 0.5rem 0.25rem;
+}
+
+.page-eyebrow-row {
   display: flex;
-  align-items: flex-start;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius-card);
-  background: var(--color-bg-muted);
+  margin-bottom: 0.65rem;
+}
+
+.page-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary-500) 12%, var(--color-bg-elevated));
+  color: var(--color-primary-700);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.page-eyebrow--signal {
+  background: color-mix(in srgb, var(--color-success-500) 10%, var(--color-bg-elevated));
+  color: var(--color-success-700);
+}
+
+.page-eyebrow__icon {
+  width: 0.85rem;
+  height: 0.85rem;
+  flex-shrink: 0;
+}
+
+.page-eyebrow__icon--pulse {
+  animation: switching-signal-pulse 2s ease-in-out infinite;
+}
+
+.page-live-dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--color-success-500);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-success-500) 35%, transparent);
+}
+
+@keyframes switching-signal-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.switching-page .page-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 800;
+  color: var(--color-text-default);
+  margin: 0 0 0.25rem;
+}
+
+.switching-page--mfd .page-title {
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: clamp(1.35rem, 3.5vw, 2rem);
+  color: color-mix(in srgb, var(--color-text-default) 92%, white 8%);
+}
+
+.page-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.page-legend__item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-badge);
+  background: color-mix(in srgb, var(--color-bg-muted) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border-default) 55%, transparent);
+}
+
+.page-legend__icon {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.page-legend__sep {
+  width: 0.65rem;
+  height: 0.65rem;
+  flex-shrink: 0;
+  opacity: 0.5;
 }

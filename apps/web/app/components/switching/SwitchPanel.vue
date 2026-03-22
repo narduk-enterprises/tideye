@@ -1,10 +1,19 @@
 <script setup lang="ts">
-/**
- * Switch panel — groups switches by category (Lights, Pumps).
- * Uses useSwitching composable for state and actions.
- */
-const { lights, pumps, error, lastAction, fetchStates, toggleSwitch, isLoading } = useSwitching()
+const { lights, pumps, error, fetchStates, toggleSwitch, isLoading } = useSwitching()
 let refreshInterval: ReturnType<typeof setInterval> | null = null
+
+const summarize = (items: Array<{ state: 'on' | 'off' | 'unknown' }>) => {
+  const active = items.filter((item) => item.state === 'on').length
+  const unknown = items.filter((item) => item.state === 'unknown').length
+  return {
+    total: items.length,
+    active,
+    unknown,
+  }
+}
+
+const lightSummary = computed(() => summarize(lights.value))
+const pumpSummary = computed(() => summarize(pumps.value))
 
 onMounted(() => {
   fetchStates()
@@ -22,32 +31,41 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-8 max-w-3xl mx-auto">
-    <!-- Error Banner -->
-    <div
-      v-if="error"
-      class="flex items-center gap-3 px-4 py-3 rounded-(--radius-card) border border-error bg-[color-mix(in_srgb,var(--color-error-500)_10%,var(--color-bg-elevated))]"
-    >
-      <UIcon name="i-lucide-alert-triangle" class="text-lg text-error" />
-      <span class="text-sm text-error">{{ error }}</span>
+  <div class="switch-panel">
+    <div v-if="error" class="panel-inline-status panel-inline-status--error">
+      <UIcon name="i-lucide-alert-triangle" class="text-sm" />
+      <span>{{ error }}</span>
     </div>
 
-    <!-- Success Banner -->
-    <div
-      v-if="lastAction"
-      class="flex items-center gap-3 px-4 py-3 rounded-(--radius-card) border border-success bg-[color-mix(in_srgb,var(--color-success-500)_10%,var(--color-bg-elevated))]"
-    >
-      <UIcon name="i-lucide-check-circle" class="text-lg text-success" />
-      <span class="text-sm text-success">{{ lastAction }}</span>
-    </div>
-
-    <!-- Lights Section -->
-    <div class="flex flex-col gap-3">
-      <div class="flex items-center gap-2 px-1">
-        <UIcon name="i-lucide-lightbulb" class="text-lg text-primary" />
-        <h3 class="text-base font-semibold text-default m-0">Lights</h3>
+    <section class="switch-section switch-section--mfd">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <UIcon name="i-lucide-lightbulb" class="text-lg text-primary" aria-hidden="true" />
+          <h3 class="section-title">Lights</h3>
+        </div>
+        <div class="section-summary" role="group" aria-label="Lights summary">
+          <span class="section-stat" :title="`${lightSummary.total} circuits`">
+            <UIcon name="i-lucide-layout-grid" class="section-stat__icon" aria-hidden="true" />
+            <span class="section-stat__n">{{ lightSummary.total }}</span>
+            <span class="sr-only">circuits</span>
+          </span>
+          <span class="section-stat section-stat--active" :title="`${lightSummary.active} on`">
+            <UIcon name="i-lucide-zap" class="section-stat__icon" aria-hidden="true" />
+            <span class="section-stat__n">{{ lightSummary.active }}</span>
+            <span class="sr-only">on</span>
+          </span>
+          <span
+            v-if="lightSummary.unknown"
+            class="section-stat section-stat--unknown"
+            :title="`${lightSummary.unknown} unknown state`"
+          >
+            <UIcon name="i-lucide-help-circle" class="section-stat__icon" aria-hidden="true" />
+            <span class="section-stat__n">{{ lightSummary.unknown }}</span>
+            <span class="sr-only">unknown state</span>
+          </span>
+        </div>
       </div>
-      <div class="flex flex-col gap-2 sm:grid sm:grid-cols-2 sm:gap-3">
+      <div class="switch-grid switch-grid--lights">
         <SwitchingSwitchControl
           v-for="sw in lights"
           :key="sw.id"
@@ -56,19 +74,40 @@ onBeforeUnmount(() => {
           :state="sw.state"
           :writable="sw.writable"
           :loading="isLoading(sw.id).value"
-          :category="sw.category"
           @toggle="toggleSwitch"
         />
       </div>
-    </div>
+    </section>
 
-    <!-- Pumps Section -->
-    <div class="flex flex-col gap-3">
-      <div class="flex items-center gap-2 px-1">
-        <UIcon name="i-lucide-droplets" class="text-lg text-info" />
-        <h3 class="text-base font-semibold text-default m-0">Pumps</h3>
+    <section class="switch-section switch-section--mfd">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <UIcon name="i-lucide-droplets" class="text-lg text-info" aria-hidden="true" />
+          <h3 class="section-title">Pumps</h3>
+        </div>
+        <div class="section-summary" role="group" aria-label="Pumps summary">
+          <span class="section-stat" :title="`${pumpSummary.total} circuits`">
+            <UIcon name="i-lucide-layout-grid" class="section-stat__icon" aria-hidden="true" />
+            <span class="section-stat__n">{{ pumpSummary.total }}</span>
+            <span class="sr-only">circuits</span>
+          </span>
+          <span class="section-stat section-stat--active" :title="`${pumpSummary.active} running`">
+            <UIcon name="i-lucide-waves" class="section-stat__icon" aria-hidden="true" />
+            <span class="section-stat__n">{{ pumpSummary.active }}</span>
+            <span class="sr-only">running</span>
+          </span>
+          <span
+            v-if="pumpSummary.unknown"
+            class="section-stat section-stat--unknown"
+            :title="`${pumpSummary.unknown} unknown state`"
+          >
+            <UIcon name="i-lucide-help-circle" class="section-stat__icon" aria-hidden="true" />
+            <span class="section-stat__n">{{ pumpSummary.unknown }}</span>
+            <span class="sr-only">unknown state</span>
+          </span>
+        </div>
       </div>
-      <div class="flex flex-col gap-2 sm:grid sm:grid-cols-2 sm:gap-3">
+      <div class="switch-grid switch-grid--pumps">
         <SwitchingSwitchControl
           v-for="sw in pumps"
           :key="sw.id"
@@ -77,19 +116,13 @@ onBeforeUnmount(() => {
           :state="sw.state"
           :writable="sw.writable"
           :loading="isLoading(sw.id).value"
-          :category="sw.category"
           @toggle="toggleSwitch"
         />
       </div>
-    </div>
-
-    <!-- Footer -->
-    <div class="flex items-start gap-2 px-4 py-3 rounded-(--radius-card) bg-muted">
-      <UIcon name="i-lucide-info" class="text-sm text-dimmed" />
-      <span class="text-xs text-dimmed">
-        State metadata is read from the SignalK Leopard plugin. Commands are sent server-side over
-        the authenticated SignalK device-access path.
-      </span>
-    </div>
+    </section>
   </div>
 </template>
+
+<style scoped>
+/* Panel layout lives in ~/assets/css/switching.css — empty block so Tailwind/Vue style pipeline gets valid CSS. */
+</style>

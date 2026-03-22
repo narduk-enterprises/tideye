@@ -28,6 +28,11 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    // Apple Maps Server API (reverse geocode for voyage titles via /api/passages/:id/places)
+    mapkitServerApiKey: process.env.MAPKIT_SERVER_API_KEY || '',
+    appleTeamId: process.env.APPLE_TEAM_ID || '',
+    appleKeyId: process.env.APPLE_KEY_ID || '',
+    appleSecretKey: process.env.APPLE_SECRET_KEY || '',
     // Server-only (admin API routes)
     googleServiceAccountKey: process.env.GSC_SERVICE_ACCOUNT_JSON || '',
     posthogApiKey: process.env.POSTHOG_PERSONAL_API_KEY || '',
@@ -55,7 +60,7 @@ export default defineNuxtConfig({
       // IndexNow
       indexNowKey: process.env.INDEXNOW_KEY || '',
       /** MastCam / other embedded live views (CSP frame-src) */
-      cspFrameSrc: process.env.CSP_FRAME_SRC || 'https://mastcam.tideye.com',
+      cspFrameSrc: process.env.CSP_FRAME_SRC || 'https://mastcam.tideye.com https://mfd.tideye.com',
     },
   },
 

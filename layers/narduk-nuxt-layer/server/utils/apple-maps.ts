@@ -95,6 +95,44 @@ export async function getDeveloperToken(config: AppleMapsCreds) {
   return token
 }
 
+// --- Maps Server API access token (exchange at /v1/token) ---
+
+let cachedMapsAccessToken = ''
+let cachedMapsAccessTokenExpiresAt = 0
+
+/**
+ * Exchange a Maps Auth / developer JWT for a short-lived access token used by
+ * Geocode, Reverse Geocode, Search, and ETA endpoints.
+ *
+ * For access tokens from runtime config (no JWT argument), use
+ * `getAppleMapsAccessToken` in `appleMapToken.ts` instead.
+ */
+export async function exchangeAppleMapsAuthJwtForAccessToken(
+  developerJwt: string,
+): Promise<string> {
+  const now = Date.now()
+  if (cachedMapsAccessToken && now < cachedMapsAccessTokenExpiresAt) {
+    return cachedMapsAccessToken
+  }
+
+  const res = await $fetch<{ accessToken?: string; expiresInSeconds?: number }>(
+    'https://maps-api.apple.com/v1/token',
+    {
+      headers: { Authorization: `Bearer ${developerJwt}` },
+    },
+  )
+
+  const at = res.accessToken
+  if (!at) {
+    throw new Error('Apple Maps /v1/token response missing accessToken')
+  }
+
+  cachedMapsAccessToken = at
+  const sec = res.expiresInSeconds ?? 300
+  cachedMapsAccessTokenExpiresAt = now + Math.max(60, sec) * 1000 - 30_000
+  return at
+}
+
 // --- Search API ---
 
 export interface AppleMapsSearchResult {
@@ -177,4 +215,35 @@ export async function searchPlaces(
   })
 
   return response.results ?? []
+}
+
+/** Reverse geocode a coordinate using an access token from {@link exchangeAppleMapsAuthJwtForAccessToken}. */
+export async function reverseGeocodeCoordinate(
+  accessToken: string,
+  lat: number,
+  lng: number,
+  lang = 'en-US',
+): Promise<AppleMapsSearchResult | null> {
+  const url = new URL('https://maps-api.apple.com/v1/reverseGeocode')
+  url.searchParams.set('loc', `${lat},${lng}`)
+  url.searchParams.set('lang', lang)
+
+  const response = await $fetch<AppleMapsSearchResponse>(url.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+
+  return response.results?.[0] ?? null
+}
+
+/**
+ * Developer credentials → access token → reverse geocode (convenience for server routes).
+ */
+export async function reverseGeocodeWithServerApi(
+  creds: AppleMapsCreds,
+  lat: number,
+  lng: number,
+): Promise<AppleMapsSearchResult | null> {
+  const dev = await getDeveloperToken(creds)
+  const access = await exchangeAppleMapsAuthJwtForAccessToken(dev)
+  return reverseGeocodeCoordinate(access, lat, lng)
 }

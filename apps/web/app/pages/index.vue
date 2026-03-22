@@ -25,8 +25,8 @@ const features = [
   },
   {
     icon: 'i-lucide-route',
-    title: 'Passage Planning',
-    description: 'Log and review your passages with historical data and route visualization.',
+    title: 'Voyages',
+    description: 'Review voyages from your track history with maps, distance, and route polylines.',
   },
   {
     icon: 'i-lucide-map',
