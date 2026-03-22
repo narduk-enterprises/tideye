@@ -176,6 +176,9 @@ export interface SearchOptions {
   searchRegion?: { north: number; east: number; south: number; west: number }
   includePoiCategories?: string
   limit?: number
+  resultTypeFilter?: string
+  limitToCountries?: string
+  lang?: string
 }
 
 export async function searchPlaces(
@@ -184,9 +187,13 @@ export async function searchPlaces(
 ): Promise<AppleMapsSearchResult[]> {
   const url = new URL('https://maps-api.apple.com/v1/search')
   url.searchParams.set('q', options.query)
-  url.searchParams.set('resultTypeFilter', 'Poi')
-  url.searchParams.set('limitToCountries', 'US')
-  url.searchParams.set('lang', 'en-US')
+  if (options.resultTypeFilter) {
+    url.searchParams.set('resultTypeFilter', options.resultTypeFilter)
+  }
+  if (options.limitToCountries) {
+    url.searchParams.set('limitToCountries', options.limitToCountries)
+  }
+  url.searchParams.set('lang', options.lang || 'en-US')
 
   if (options.limit) {
     url.searchParams.set('limit', String(options.limit))
@@ -246,4 +253,120 @@ export async function reverseGeocodeWithServerApi(
   const dev = await getDeveloperToken(creds)
   const access = await exchangeAppleMapsAuthJwtForAccessToken(dev)
   return reverseGeocodeCoordinate(access, lat, lng)
+}
+
+function normalizeContextualLabel(value: unknown) {
+  if (typeof value !== 'string') return null
+  const cleaned = value.trim()
+  if (!cleaned) return null
+  if (
+    /^\d/.test(cleaned) ||
+    /\b(?:st|street|rd|road|ave|avenue|blvd|boulevard|dr|drive|ln|lane|ct|court)\b/i.test(cleaned)
+  ) {
+    return null
+  }
+  return cleaned
+}
+
+function pickContextualLabelFromResult(result: AppleMapsSearchResult | null) {
+  if (!result) return null
+
+  const structured = result.structuredAddress
+  const candidates = [
+    result.name,
+    structured?.areasOfInterest?.[0],
+    structured?.subLocality,
+    structured?.locality,
+    structured?.dependentLocalities?.[0],
+  ]
+
+  for (const candidate of candidates) {
+    const normalized = normalizeContextualLabel(candidate)
+    if (normalized) return normalized
+  }
+
+  return null
+}
+
+function smallSearchRegion(lat: number, lng: number, radiusNm: number) {
+  const latDelta = radiusNm / 60
+  const lonDelta = radiusNm / Math.max(1, 60 * Math.cos((lat * Math.PI) / 180))
+  return {
+    north: lat + latDelta,
+    south: lat - latDelta,
+    east: lng + lonDelta,
+    west: lng - lonDelta,
+  }
+}
+
+function haversineNm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 3440.065
+  const toR = Math.PI / 180
+  const dLat = (lat2 - lat1) * toR
+  const dLon = (lon2 - lon1) * toR
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * toR) * Math.cos(lat2 * toR) * Math.sin(dLon / 2) ** 2
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)))
+}
+
+function pickNearbyContextualResult(
+  results: AppleMapsSearchResult[],
+  lat: number,
+  lng: number,
+): string | null {
+  let best: string | null = null
+  let bestScore = -Infinity
+  for (const result of results) {
+    const label = normalizeContextualLabel(result.name || result.displayName)
+    const resLat = Number(result.coordinate?.latitude)
+    const resLon = Number(result.coordinate?.longitude)
+    if (!label || !Number.isFinite(resLat) || !Number.isFinite(resLon)) continue
+
+    const distanceNm = haversineNm(lat, lng, resLat, resLon)
+    const marineBoost = /\b(?:marina|harbor|harbour|port|anchorage|bay|inlet|key)\b/i.test(label)
+      ? 4
+      : 0
+    const score = marineBoost - distanceNm
+    if (score > bestScore) {
+      bestScore = score
+      best = label
+    }
+  }
+  return best
+}
+
+export async function resolveContextualPlaceLabel(
+  accessToken: string,
+  lat: number,
+  lng: number,
+): Promise<string | null> {
+  const reverse = await reverseGeocodeCoordinate(accessToken, lat, lng)
+  const direct = pickContextualLabelFromResult(reverse)
+  if (direct) return direct
+
+  const region = smallSearchRegion(lat, lng, 10)
+  for (const query of ['marina', 'harbor', 'harbour', 'port', 'anchorage', 'bay', 'inlet']) {
+    const nearby = await searchPlaces(accessToken, {
+      query,
+      searchLocation: { lat, lng },
+      searchRegion: region,
+      limit: 8,
+      lang: 'en-US',
+    })
+    const best = pickNearbyContextualResult(nearby, lat, lng)
+    if (best) return best
+  }
+
+  return null
+}
+
+export async function resolveContextualPlaceLabelWithServerApi(
+  creds: AppleMapsCreds,
+  lat: number,
+  lng: number,
+): Promise<string | null> {
+  const dev = await getDeveloperToken(creds)
+  const access = await exchangeAppleMapsAuthJwtForAccessToken(dev)
+  return resolveContextualPlaceLabel(access, lat, lng)
 }

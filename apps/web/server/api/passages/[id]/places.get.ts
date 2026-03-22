@@ -1,8 +1,7 @@
 import { eq } from 'drizzle-orm'
 import {
-  reverseGeocodeWithServerApi,
+  resolveContextualPlaceLabelWithServerApi,
   type AppleMapsCreds,
-  type AppleMapsSearchResult,
 } from '#layer/server/utils/apple-maps'
 import { passages } from '#server/database/schema'
 import type { PassagePlaceDto } from '~/types/passage'
@@ -23,14 +22,14 @@ function hasAppleMapsServerCreds(creds: AppleMapsCreds) {
   return Boolean(creds.appleTeamId && creds.appleKeyId && creds.appleSecretKey)
 }
 
-function toPlaceDto(r: AppleMapsSearchResult | null) {
-  if (!r) return null
+function toPlaceDto(label: string | null) {
+  if (!label) return null
   return {
-    name: r.name ?? r.formattedAddressLines?.[0] ?? null,
-    formattedAddressLines: r.formattedAddressLines ?? [],
-    locality: r.structuredAddress?.locality ?? null,
-    administrativeArea: r.structuredAddress?.administrativeArea ?? null,
-    country: r.country ?? null,
+    name: label,
+    formattedAddressLines: [label],
+    locality: null,
+    administrativeArea: null,
+    country: null,
   }
 }
 
@@ -82,18 +81,18 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const [startRaw, endRaw] = await Promise.all([
+    const [startLabel, endLabel] = await Promise.all([
       startStored
         ? Promise.resolve(null)
-        : reverseGeocodeWithServerApi(creds, row.startLat, row.startLon),
+        : resolveContextualPlaceLabelWithServerApi(creds, row.startLat, row.startLon),
       endStored
         ? Promise.resolve(null)
-        : reverseGeocodeWithServerApi(creds, row.endLat, row.endLon),
+        : resolveContextualPlaceLabelWithServerApi(creds, row.endLat, row.endLon),
     ])
 
     return {
-      start: startStored ?? toPlaceDto(startRaw),
-      end: endStored ?? toPlaceDto(endRaw),
+      start: startStored ?? toPlaceDto(startLabel),
+      end: endStored ?? toPlaceDto(endLabel),
       error: null,
     }
   } catch (err) {

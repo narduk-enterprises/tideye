@@ -1,0 +1,59 @@
+{
+  "v": 1,
+  "generatedAt": "2026-03-22T07:26:11.542Z",
+  "bucket": "Tideye",
+  "connection": {
+    "label": "env-default-host",
+    "host": "http://tideye-server.curl-banjo.ts.net:8086"
+  },
+  "range": {
+    "start": "2023-11-01T00:00:00Z",
+    "stop": "2024-01-10T00:00:00Z"
+  },
+  "thresholds": {
+    "movingSogKts": 1,
+    "movingStepKts": 1,
+    "stopMaxSogKts": 0.6,
+    "stopMaxRadiusNm": 0.8,
+    "stopMinDurationHours": 3,
+    "minPassageDistanceNm": 5,
+    "minPassageDurationHours": 0.75,
+    "trafficProximityNm": 24
+  },
+  "passages": [
+    {
+      "id": "passage-20231127T152745-80c8a299",
+      "title": "Cooper River → Indian River · 346.5 nm",
+      "startedAt": "2023-11-27T15:27:45Z",
+      "endedAt": "2023-11-29T19:50:45Z",
+      "startLat": 32.788648,
+      "startLon": -79.909243,
+      "endLat": 27.463653,
+      "endLon": -80.310135,
+      "distanceNm": 346.5,
+      "durationHours": 52.38,
+      "avgSog": 3.39,
+      "maxSog": 5.55,
+      "startPlaceLabel": "Cooper River",
+      "endPlaceLabel": "Indian River",
+      "file": "passages/passage-20231127T152745-80c8a299.json",
+      "sampleCount": 12573,
+      "trafficVesselCount": 293,
+      "selfWindow": "15s",
+      "trafficWindow": "180s",
+      "sources": {
+        "selfPosition": "ydg-nmea-2000.2",
+        "selfNavigation": "ydg-nmea-2000.2",
+        "selfHeadingMagnetic": "ydg-nmea-2000.204",
+        "selfMagneticVariation": "ydg-nmea-2000.4",
+        "selfEnvironment": "ydg-nmea-2000.105",
+        "selfTrueWind": "ydg-nmea-0183.YD",
+        "selfAirTemp": "ydg-nmea-0183.AI",
+        "selfEnginePort": "ydg-nmea-2000.236",
+        "selfEngineStarboard": "ydg-nmea-2000.237",
+        "trafficPosition": "ydg-nmea-2000.2",
+        "trafficName": "ydg-nmea-2000.2"
+      }
+    }
+  ]
+}

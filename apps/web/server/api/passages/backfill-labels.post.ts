@@ -1,8 +1,7 @@
 import { count, desc, eq, isNull, or } from 'drizzle-orm'
 import {
-  reverseGeocodeWithServerApi,
+  resolveContextualPlaceLabelWithServerApi,
   type AppleMapsCreds,
-  type AppleMapsSearchResult,
 } from '#layer/server/utils/apple-maps'
 import { passages } from '#server/database/schema'
 
@@ -24,16 +23,6 @@ function hasAppleMapsServerCreds(creds: AppleMapsCreds) {
   const jwt = creds.mapkitServerApiKey?.trim()
   if (jwt) return true
   return Boolean(creds.appleTeamId && creds.appleKeyId && creds.appleSecretKey)
-}
-
-function pickLine(r: AppleMapsSearchResult | null): string | null {
-  if (!r) return null
-  if (r.name) return String(r.name).trim()
-  const lines = r.formattedAddressLines
-  if (Array.isArray(lines) && lines[0]) return String(lines[0]).trim()
-  const loc = r.structuredAddress?.locality
-  if (loc) return String(loc).trim()
-  return null
 }
 
 function truncateTitle(s: string, max: number) {
@@ -75,12 +64,14 @@ export default defineEventHandler(async (event) => {
       const [startRaw, endRaw] = await Promise.all([
         hasStart
           ? Promise.resolve(null)
-          : reverseGeocodeWithServerApi(creds, row.startLat, row.startLon),
-        hasEnd ? Promise.resolve(null) : reverseGeocodeWithServerApi(creds, row.endLat, row.endLon),
+          : resolveContextualPlaceLabelWithServerApi(creds, row.startLat, row.startLon),
+        hasEnd
+          ? Promise.resolve(null)
+          : resolveContextualPlaceLabelWithServerApi(creds, row.endLat, row.endLon),
       ])
 
-      const startName = hasStart ? row.startPlaceLabel!.trim() : pickLine(startRaw)
-      const endName = hasEnd ? row.endPlaceLabel!.trim() : pickLine(endRaw)
+      const startName = hasStart ? row.startPlaceLabel!.trim() : startRaw?.trim() || null
+      const endName = hasEnd ? row.endPlaceLabel!.trim() : endRaw?.trim() || null
       if (!startName || !endName) continue
 
       const startStore = (hasStart ? row.startPlaceLabel!.trim() : startName).slice(0, LABEL_MAX)

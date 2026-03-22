@@ -11,6 +11,7 @@
     "db:migrate": "bash ../../tools/db-migrate.sh tideye-db --local --dir drizzle",
     "db:seed": "wrangler d1 execute tideye-db --local --file=node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle/seed.sql && wrangler d1 execute tideye-db --local --file=drizzle/seed-passages.sql",
     "db:seed:passages-from-influx": "doppler run --project tideye --config prd -- node ../../tools/passage-seed-pipeline.mjs",
+    "playback:export:passages": "doppler run --project tideye --config prd -- node ../../tools/passage-playback-export.mjs",
     "db:reset": "bash ../../tools/db-migrate.sh tideye-db --local --dir drizzle --reset && pnpm run db:seed",
     "db:studio": "drizzle-kit studio",
     "generate": "nuxt generate",

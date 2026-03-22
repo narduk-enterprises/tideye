@@ -71,6 +71,13 @@ const TARGET_SELF_SAMPLES = Number(process.env.PASSAGE_EXPORT_TARGET_SELF_SAMPLE
 const TARGET_TRAFFIC_SAMPLES_PER_VESSEL = Number(
   process.env.PASSAGE_EXPORT_TARGET_TRAFFIC_SAMPLES_PER_VESSEL || 1_200,
 )
+const TARGET_TRAFFIC_TOTAL_SAMPLES = Number(
+  process.env.PASSAGE_EXPORT_TARGET_TRAFFIC_TOTAL_SAMPLES || 150_000,
+)
+const TRAFFIC_CONTEXT_BATCH_SIZE = Number(process.env.PASSAGE_EXPORT_TRAFFIC_CONTEXT_BATCH_SIZE || 60)
+const TRAFFIC_METADATA_LOOKBACK_HOURS = Number(
+  process.env.PASSAGE_EXPORT_TRAFFIC_METADATA_LOOKBACK_HOURS || 24 * 14,
+)
 
 const SELF_POSITION_SOURCE = process.env.PASSAGE_EXPORT_SELF_POSITION_SOURCE || 'ydg-nmea-2000.2'
 const SELF_NAV_SOURCE = process.env.PASSAGE_EXPORT_SELF_NAV_SOURCE || SELF_POSITION_SOURCE
@@ -319,15 +326,16 @@ function exportPassageBundle(index, coarse, appleResolver) {
   if (selfTrimmed.length < 2) {
     throw new Error(`Passage ${coarse.startedAt} returned too few self samples after trimming`)
   }
+  const selfSamples = evenDecimateRows(selfTrimmed, TARGET_SELF_SAMPLES)
 
-  const start = selfTrimmed[0]
-  const end = selfTrimmed[selfTrimmed.length - 1]
-  const summary = summarizeSelfSamples(selfTrimmed)
+  const start = selfSamples[0]
+  const end = selfSamples[selfSamples.length - 1]
+  const summary = summarizeSelfSamples(selfSamples)
   const passageId = stablePassageId(index + 1, start.t, end.t, start.lat, start.lon)
-  const trackOverview = buildOverviewTrack(selfTrimmed, OVERVIEW_TRACK_MAX_POINTS)
+  const trackOverview = buildOverviewTrack(selfSamples, OVERVIEW_TRACK_MAX_POINTS)
 
   const trafficWindow = chooseTrafficWindow(summary.durationHours)
-  const traffic = exportTrafficBundle(start.t, end.t, selfTrimmed, trafficWindow)
+  const traffic = exportTrafficBundle(start.t, end.t, selfSamples, trafficWindow)
 
   const labels = resolveEndpointLabels(appleResolver, start, end)
   const title = `${labels.startLabel} → ${labels.endLabel} · ${summary.distanceNm} nm`
@@ -361,7 +369,7 @@ function exportPassageBundle(index, coarse, appleResolver) {
     },
     self: {
       window: selfWindow,
-      samples: selfTrimmed.map(toSelfSampleRecord),
+      samples: selfSamples.map(toSelfSampleRecord),
     },
     traffic,
   }
@@ -514,6 +522,10 @@ function exportTrafficBundle(startIso, stopIso, ownSamples, windowEvery) {
     'navigation.destination.commonName',
   )
   const aisClassMap = fetchTrafficMetadataMap(startIso, stopIso, 'sensors.ais.class')
+  const maxSamplesPerVessel = Math.max(
+    120,
+    Math.min(TARGET_TRAFFIC_SAMPLES_PER_VESSEL, Math.floor(TARGET_TRAFFIC_TOTAL_SAMPLES / contexts.length)),
+  )
 
   const vessels = []
   for (const [context, pts] of filtered) {
@@ -554,7 +566,10 @@ function exportTrafficBundle(startIso, stopIso, ownSamples, windowEvery) {
       }
     })
 
-    vessels.push({ profile, samples })
+    vessels.push({
+      profile,
+      samples: evenDecimateRows(samples, maxSamplesPerVessel),
+    })
   }
 
   vessels.sort((a, b) => {
@@ -626,16 +641,19 @@ function filterTrafficByProximity(byContext, ownSamples) {
 
 function fetchTrafficScalarMap(startIso, stopIso, every, contexts, measurement) {
   if (!contexts.length) return new Map()
-  const raw = runInflux(fluxTrafficScalar(startIso, stopIso, every, contexts, measurement))
-  const rows = parseAnnotatedCsv(raw)
   const out = new Map()
-  for (const row of rows) {
-    const context = row.context
-    const t = row._time
-    const value = numberOrNull(row._value)
-    if (!context || !t || !Number.isFinite(value)) continue
-    if (!out.has(context)) out.set(context, [])
-    out.get(context).push({ t, v: value })
+  const contextBatches = chunkArray(contexts, TRAFFIC_CONTEXT_BATCH_SIZE)
+  for (const batch of contextBatches) {
+    const raw = runInflux(fluxTrafficScalar(startIso, stopIso, every, batch, measurement))
+    const rows = parseAnnotatedCsv(raw)
+    for (const row of rows) {
+      const context = row.context
+      const t = row._time
+      const value = numberOrNull(row._value)
+      if (!context || !t || !Number.isFinite(value)) continue
+      if (!out.has(context)) out.set(context, [])
+      out.get(context).push({ t, v: value })
+    }
   }
   for (const values of out.values()) {
     values.sort((a, b) => a.t.localeCompare(b.t))
@@ -644,7 +662,7 @@ function fetchTrafficScalarMap(startIso, stopIso, every, contexts, measurement) 
 }
 
 function fetchTrafficNameMap(startIso, stopIso) {
-  const raw = runInflux(fluxTrafficNames(startIso, stopIso))
+  const raw = runInflux(fluxTrafficNames(addHoursIso(startIso, -TRAFFIC_METADATA_LOOKBACK_HOURS), stopIso))
   const rows = parseAnnotatedCsv(raw)
   const out = new Map()
   for (const row of rows) {
@@ -656,7 +674,9 @@ function fetchTrafficNameMap(startIso, stopIso) {
 }
 
 function fetchTrafficMetadataMap(startIso, stopIso, measurement) {
-  const raw = runInflux(fluxTrafficMetadata(startIso, stopIso, measurement))
+  const raw = runInflux(
+    fluxTrafficMetadata(addHoursIso(startIso, -TRAFFIC_METADATA_LOOKBACK_HOURS), stopIso, measurement),
+  )
   const rows = parseAnnotatedCsv(raw)
   const out = new Map()
   for (const row of rows) {
@@ -960,17 +980,13 @@ function runInflux(flux) {
 
 function resolveInfluxConnection() {
   const envHost = process.env.INFLUX_HOST || process.env.INFLUX_URL || ''
-  if (
-    envHost &&
-    process.env.INFLUX_TOKEN &&
-    (process.env.INFLUX_ORG_ID || process.env.INFLUX_ORG_NAME)
-  ) {
+  if (process.env.INFLUX_TOKEN && (process.env.INFLUX_ORG_ID || process.env.INFLUX_ORG_NAME)) {
     return {
-      host: envHost,
+      host: envHost || DEFAULT_LIVE_INFLUX_HOST,
       token: process.env.INFLUX_TOKEN,
       orgId: process.env.INFLUX_ORG_ID || '',
       orgName: process.env.INFLUX_ORG_NAME || '',
-      label: 'env',
+      label: envHost ? 'env' : 'env-default-host',
     }
   }
 
@@ -1223,15 +1239,26 @@ function toSelfSampleRecord(row) {
 }
 
 function chooseSelfWindow(durationHours) {
-  if (durationHours <= 12) return process.env.PASSAGE_EXPORT_SELF_WINDOW_SHORT || '2s'
-  if (durationHours <= 72) return process.env.PASSAGE_EXPORT_SELF_WINDOW_MEDIUM || '5s'
-  return process.env.PASSAGE_EXPORT_SELF_WINDOW_LONG || '10s'
+  return chooseAdaptiveWindow(durationHours, TARGET_SELF_SAMPLES, 2, 60)
 }
 
 function chooseTrafficWindow(durationHours) {
-  if (durationHours <= 12) return process.env.PASSAGE_EXPORT_TRAFFIC_WINDOW_SHORT || '15s'
-  if (durationHours <= 72) return process.env.PASSAGE_EXPORT_TRAFFIC_WINDOW_MEDIUM || '30s'
-  return process.env.PASSAGE_EXPORT_TRAFFIC_WINDOW_LONG || '60s'
+  return chooseAdaptiveWindow(durationHours, TARGET_TRAFFIC_SAMPLES_PER_VESSEL, 15, 300)
+}
+
+function chooseAdaptiveWindow(durationHours, targetSamples, minSeconds, maxSeconds) {
+  const durationSeconds = Math.max(1, durationHours * 3_600)
+  const rawSeconds = durationSeconds / Math.max(1, targetSamples)
+  const boundedSeconds = Math.min(maxSeconds, Math.max(minSeconds, rawSeconds))
+  return `${pickFriendlyStepSeconds(boundedSeconds)}s`
+}
+
+function pickFriendlyStepSeconds(seconds) {
+  const candidates = [2, 5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240, 300]
+  for (const candidate of candidates) {
+    if (candidate >= seconds) return candidate
+  }
+  return candidates[candidates.length - 1]
 }
 
 function timeWindowToleranceMs(windowEvery) {
@@ -1273,6 +1300,14 @@ function splitRangeByHours(startIso, stopIso, hours) {
     const end = next < stop ? next : stop
     out.push({ start: start.toISOString(), stop: end.toISOString() })
     start = end
+  }
+  return out
+}
+
+function chunkArray(values, size) {
+  const out = []
+  for (let i = 0; i < values.length; i += size) {
+    out.push(values.slice(i, i + size))
   }
   return out
 }
@@ -1343,6 +1378,16 @@ function evenDecimate(values, maxPoints) {
   return out
 }
 
+function evenDecimateRows(rows, maxPoints) {
+  if (rows.length <= maxPoints) return rows
+  const step = Math.ceil(rows.length / maxPoints)
+  const out = []
+  for (let i = 0; i < rows.length; i += step) out.push(rows[i])
+  const last = rows[rows.length - 1]
+  if (out[out.length - 1]?.t !== last.t) out.push(last)
+  return out
+}
+
 function numberOrNull(value) {
   const n = Number.parseFloat(value)
   return Number.isFinite(n) ? n : null
@@ -1386,6 +1431,10 @@ function revsPerSecondToRpm(value) {
 
 function addMinutesIso(iso, minutes) {
   return new Date(Date.parse(iso) + minutes * 60_000).toISOString()
+}
+
+function addHoursIso(iso, hours) {
+  return new Date(Date.parse(iso) + hours * 3_600_000).toISOString()
 }
 
 function mmsiFromContext(context) {
