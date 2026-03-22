@@ -123,7 +123,8 @@ const SKIP_MOVING_DAY_10M = process.env.PASSAGE_SKIP_MOVING_DAY_10M === '1'
 
 const SUBDAILY_SPLIT = process.env.PASSAGE_SUBDAILY_SPLIT !== '0'
 const SUBDAILY_MAX_RANK_RAW =
-  process.env.PASSAGE_SUBDAILY_MAX_RANK !== undefined && process.env.PASSAGE_SUBDAILY_MAX_RANK !== ''
+  process.env.PASSAGE_SUBDAILY_MAX_RANK !== undefined &&
+  process.env.PASSAGE_SUBDAILY_MAX_RANK !== ''
     ? Number(process.env.PASSAGE_SUBDAILY_MAX_RANK)
     : 999
 const SUBDAILY_MAX_RANK = Number.isFinite(SUBDAILY_MAX_RANK_RAW) ? SUBDAILY_MAX_RANK_RAW : 999
@@ -147,7 +148,8 @@ const MEAS_WIND_DIR = process.env.PASSAGE_INFLUX_WIND_DIR || 'environment.wind.d
 const MEAS_HEADING = process.env.PASSAGE_INFLUX_HEADING || 'navigation.headingTrue'
 
 const TRAFFIC_EXPORT = process.env.PASSAGE_TRAFFIC_EXPORT !== '0'
-const TRAFFIC_MAX_PASSAGES = Number(process.env.PASSAGE_TRAFFIC_MAX_PASSAGES) || PLAYBACK_MAX_PASSAGES
+const TRAFFIC_MAX_PASSAGES =
+  Number(process.env.PASSAGE_TRAFFIC_MAX_PASSAGES) || PLAYBACK_MAX_PASSAGES
 const TRAFFIC_WINDOW = (process.env.PASSAGE_TRAFFIC_WINDOW || WINDOW_TRACK).trim()
 const TRAFFIC_MAX_NM = Number(process.env.PASSAGE_TRAFFIC_MAX_NM) || 22
 const TRAFFIC_MAX_VESSELS = Number(process.env.PASSAGE_TRAFFIC_MAX_VESSELS) || 100
@@ -719,8 +721,7 @@ function mergeTwoVoyages(a, b) {
     startLon: a.startLon,
     endLat: b.endLat,
     endLon: b.endLon,
-    distanceNm:
-      Math.round(haversineNm(a.startLat, a.startLon, b.endLat, b.endLon) * 10) / 10,
+    distanceNm: Math.round(haversineNm(a.startLat, a.startLon, b.endLat, b.endLon) * 10) / 10,
     movingDayCount: (a.movingDayCount ?? 0) + (b.movingDayCount ?? 0),
   }
 }
@@ -849,7 +850,14 @@ function expandVoyagesForSeed(voyages) {
   return out
 }
 
-function fluxScalarMean(start, stop, every, measurement, fieldName = 'value', sourceTag = SOURCE_NAVIGATION) {
+function fluxScalarMean(
+  start,
+  stop,
+  every,
+  measurement,
+  fieldName = 'value',
+  sourceTag = SOURCE_NAVIGATION,
+) {
   return `
 from(bucket: "${BUCKET}")
   |> range(start: ${start}, stop: ${stop})
@@ -927,17 +935,23 @@ function buildPlaybackJsonForVoyage(voyage, paddedPositionRows) {
   let wspdPts = []
   let wdirPts = []
   try {
-    sogPts = parseInfluxScalarCsv(runInflux(fluxScalarMean(t0, t1, WINDOW_TRACK, MEAS_SOG, 'value', SOURCE_NAVIGATION)))
+    sogPts = parseInfluxScalarCsv(
+      runInflux(fluxScalarMean(t0, t1, WINDOW_TRACK, MEAS_SOG, 'value', SOURCE_NAVIGATION)),
+    )
   } catch {
     sogPts = []
   }
   try {
-    cogPts = parseInfluxScalarCsv(runInflux(fluxScalarMean(t0, t1, WINDOW_TRACK, MEAS_COG, 'value', SOURCE_NAVIGATION)))
+    cogPts = parseInfluxScalarCsv(
+      runInflux(fluxScalarMean(t0, t1, WINDOW_TRACK, MEAS_COG, 'value', SOURCE_NAVIGATION)),
+    )
   } catch {
     cogPts = []
   }
   try {
-    stwPts = parseInfluxScalarCsv(runInflux(fluxScalarMean(t0, t1, WINDOW_TRACK, MEAS_STW, 'value', SOURCE_NAVIGATION)))
+    stwPts = parseInfluxScalarCsv(
+      runInflux(fluxScalarMean(t0, t1, WINDOW_TRACK, MEAS_STW, 'value', SOURCE_NAVIGATION)),
+    )
   } catch {
     stwPts = []
   }
@@ -1132,9 +1146,10 @@ function parseInfluxLastDataLine(line) {
   const tm = /^([^,]+),(vessels\.urn:mrn:imo:mmsi:\d+)(?:,(.+))?$/.exec(tail)
   if (!tm) return null
   const context = tm[2]
-  const mHead = /^,,[^,]+,(\d{4}-\d{2}-\d{2}T[\d:.]+Z),(\d{4}-\d{2}-\d{2}T[\d:.]+Z),(\d{4}-\d{2}-\d{2}T[\d:.]+Z),(.+)$/.exec(
-    head,
-  )
+  const mHead =
+    /^,,[^,]+,(\d{4}-\d{2}-\d{2}T[\d:.]+Z),(\d{4}-\d{2}-\d{2}T[\d:.]+Z),(\d{4}-\d{2}-\d{2}T[\d:.]+Z),(.+)$/.exec(
+      head,
+    )
   if (!mHead) return null
   let valRaw = mHead[4]
   if (valRaw.startsWith('"') && valRaw.endsWith('"')) {
@@ -1261,17 +1276,23 @@ function buildTrafficExportForVoyage(voyage, ownPaddedRows) {
   let cogM = new Map()
   let hdgM = new Map()
   try {
-    sogM = parseContextTimeValueCsv(runInflux(fluxAggScalarByContext(t0, t1, TRAFFIC_WINDOW, MEAS_SOG, orExpr)))
+    sogM = parseContextTimeValueCsv(
+      runInflux(fluxAggScalarByContext(t0, t1, TRAFFIC_WINDOW, MEAS_SOG, orExpr)),
+    )
   } catch {
     /* */
   }
   try {
-    cogM = parseContextTimeValueCsv(runInflux(fluxAggScalarByContext(t0, t1, TRAFFIC_WINDOW, MEAS_COG, orExpr)))
+    cogM = parseContextTimeValueCsv(
+      runInflux(fluxAggScalarByContext(t0, t1, TRAFFIC_WINDOW, MEAS_COG, orExpr)),
+    )
   } catch {
     /* */
   }
   try {
-    hdgM = parseContextTimeValueCsv(runInflux(fluxAggScalarByContext(t0, t1, TRAFFIC_WINDOW, MEAS_HEADING, orExpr)))
+    hdgM = parseContextTimeValueCsv(
+      runInflux(fluxAggScalarByContext(t0, t1, TRAFFIC_WINDOW, MEAS_HEADING, orExpr)),
+    )
   } catch {
     /* */
   }
@@ -1297,12 +1318,16 @@ function buildTrafficExportForVoyage(voyage, ownPaddedRows) {
     /* */
   }
   try {
-    destM = parseLastPlainStringCsv(runInflux(fluxLastByContext(t0, t1, 'navigation.destination.commonName', orExpr)))
+    destM = parseLastPlainStringCsv(
+      runInflux(fluxLastByContext(t0, t1, 'navigation.destination.commonName', orExpr)),
+    )
   } catch {
     /* */
   }
   try {
-    typeM = parseLastAisShipTypeCsv(runInflux(fluxLastByContext(t0, t1, 'design.aisShipType', orExpr)))
+    typeM = parseLastAisShipTypeCsv(
+      runInflux(fluxLastByContext(t0, t1, 'design.aisShipType', orExpr)),
+    )
   } catch {
     /* */
   }
@@ -1335,9 +1360,21 @@ function buildTrafficExportForVoyage(voyage, ownPaddedRows) {
           t: p.t,
           lat: Math.round(p.lat * 1e6) / 1e6,
           lon: Math.round(p.lon * 1e6) / 1e6,
-          sog: nearestScalar(sogPts.map((x) => ({ t: x.t, v: x.v })), ms, maxDelta),
-          cog: nearestScalar(cogPts.map((x) => ({ t: x.t, v: x.v })), ms, maxDelta),
-          hdg: nearestScalar(hdgPts.map((x) => ({ t: x.t, v: x.v })), ms, maxDelta),
+          sog: nearestScalar(
+            sogPts.map((x) => ({ t: x.t, v: x.v })),
+            ms,
+            maxDelta,
+          ),
+          cog: nearestScalar(
+            cogPts.map((x) => ({ t: x.t, v: x.v })),
+            ms,
+            maxDelta,
+          ),
+          hdg: nearestScalar(
+            hdgPts.map((x) => ({ t: x.t, v: x.v })),
+            ms,
+            maxDelta,
+          ),
         }
       }),
       TRAFFIC_MAX_SAMPLES,
@@ -1542,10 +1579,14 @@ DELETE FROM passages WHERE position_source = '${sqlEscape(SOURCE_POSITION)}';
     const startLblSql = row.startPlaceLabel == null ? 'NULL' : `'${sqlEscape(row.startPlaceLabel)}'`
     const endLblSql = row.endPlaceLabel == null ? 'NULL' : `'${sqlEscape(row.endPlaceLabel)}'`
     const segGroupSql =
-      row.segmentGroupId == null || row.segmentGroupId === '' ? 'NULL' : `'${sqlEscape(row.segmentGroupId)}'`
+      row.segmentGroupId == null || row.segmentGroupId === ''
+        ? 'NULL'
+        : `'${sqlEscape(row.segmentGroupId)}'`
     const segIdx = Number.isFinite(row.segmentIndex) ? row.segmentIndex : 0
     const playbackSql =
-      row.playbackJson == null || row.playbackJson === '' ? 'NULL' : `'${sqlEscape(row.playbackJson)}'`
+      row.playbackJson == null || row.playbackJson === ''
+        ? 'NULL'
+        : `'${sqlEscape(row.playbackJson)}'`
     statements.push(
       `INSERT INTO passages (${cols}) VALUES ('${id}', '${sqlEscape(title)}', '${row.startedAt}', '${row.endedAt}', ` +
         `${row.startLat}, ${row.startLon}, ${row.endLat}, ${row.endLon}, ${row.distanceNm}, ` +

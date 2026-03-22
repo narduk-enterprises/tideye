@@ -25,15 +25,19 @@ const selectedKey = computed(() => selectedPassageId.value ?? '')
 const { data: selectedPassage } = await usePassageById(selectedKey)
 const { places, placesPending, placesError } = usePassagePlaces(selectedPassageId)
 
-const { data: trafficList, pending: trafficPending, error: trafficError } =
-  await usePassageTrafficList(selectedPassageId)
+const {
+  data: trafficList,
+  pending: trafficPending,
+  error: trafficError,
+} = await usePassageTrafficList(selectedPassageId)
 
 const trafficMapCircles = computed(() => {
   const rows = trafficList.value ?? []
   /** MapKit circle overlay — hex required by MapKit JS. */
   // eslint-disable-next-line narduk/no-inline-hex -- MapKit circle color API
   const color = '#64748b'
-  const out: Array<{ lat: number; lng: number; radius: number; color: string; opacity?: number }> = []
+  const out: Array<{ lat: number; lng: number; radius: number; color: string; opacity?: number }> =
+    []
   for (const r of rows) {
     if (!r.samples?.length) continue
     const s = r.samples[Math.floor(r.samples.length / 2)] ?? r.samples[0]
@@ -541,7 +545,7 @@ function placeLines(place: { formattedAddressLines: string[]; name: string | nul
                   <p v-else-if="trafficError" class="mt-2 text-xs text-error">
                     Could not load traffic data.
                   </p>
-                  <p v-else-if="!(trafficList?.length)" class="mt-2 text-xs text-muted">
+                  <p v-else-if="!trafficList?.length" class="mt-2 text-xs text-muted">
                     No traffic rows in D1 for this leg. Re-seed with Phase E export enabled.
                   </p>
                   <ul v-else class="mt-2 max-h-36 space-y-1 overflow-y-auto text-xs">

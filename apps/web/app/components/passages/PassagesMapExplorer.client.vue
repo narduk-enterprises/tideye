@@ -15,7 +15,13 @@ const props = withDefaults(
   defineProps<{
     passages: PassageDto[]
     /** AIS / traffic snapshot markers (MapKit circles). */
-    trafficCircles?: Array<{ lat: number; lng: number; radius: number; color: string; opacity?: number }>
+    trafficCircles?: Array<{
+      lat: number
+      lng: number
+      radius: number
+      color: string
+      opacity?: number
+    }>
   }>(),
   { trafficCircles: () => [] },
 )
