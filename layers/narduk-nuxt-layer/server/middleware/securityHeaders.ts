@@ -78,6 +78,17 @@ export default defineEventHandler((event) => {
   }
   const finalFrameSrc = `frame-src ${Array.from(new Set(baseFrameSrc)).join(' ')}`
 
+  // 7. Build worker-src (for blob: web workers, e.g. video streams)
+  const baseWorkerSrc = ["'self'"]
+  if (config.public.cspWorkerSrc) {
+    const customWorkers = config.public.cspWorkerSrc
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+    baseWorkerSrc.push(...customWorkers)
+  }
+  const finalWorkerSrc = `worker-src ${Array.from(new Set(baseWorkerSrc)).join(' ')}`
+
   const diagnosticHeaders: Record<string, string> = {}
   if (appVersion) diagnosticHeaders['X-App-Version'] = appVersion
   if (buildVersion) diagnosticHeaders['X-Build-Version'] = buildVersion
@@ -97,6 +108,7 @@ export default defineEventHandler((event) => {
       "font-src 'self' https://fonts.gstatic.com",
       finalConnectSrc,
       finalFrameSrc,
+      finalWorkerSrc,
       "frame-ancestors 'none'",
     ].join('; '),
     ...diagnosticHeaders,

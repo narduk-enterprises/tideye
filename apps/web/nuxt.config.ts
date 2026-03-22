@@ -61,6 +61,12 @@ export default defineNuxtConfig({
       indexNowKey: process.env.INDEXNOW_KEY || '',
       /** MastCam / other embedded live views (CSP frame-src) */
       cspFrameSrc: process.env.CSP_FRAME_SRC || 'https://mastcam.tideye.com https://mfd.tideye.com',
+      /** SignalK client connections (local HTTP + public HTTPS/WSS) */
+      cspConnectSrc:
+        process.env.CSP_CONNECT_SRC ||
+        'http://signalk-local.tideye.com,https://signalk-public.tideye.com,wss://signalk-public.tideye.com,wss://signalk-local.tideye.com',
+      /** Video-stream blob workers */
+      cspWorkerSrc: process.env.CSP_WORKER_SRC || 'blob:',
     },
   },
 
