@@ -7,8 +7,7 @@ definePageMeta({ keepalive: true })
 const config = useRuntimeConfig()
 const appName = config.public.appName || 'TideEye'
 
-const mastcamStreamUrl =
-  'https://mastcam.tideye.com/stream.html?src=MastCam&mode=webrtc'
+const mastcamStreamUrl = 'https://mastcam.tideye.com/stream.html?src=MastCam&mode=webrtc'
 
 useSeo({
   title: `${appName} — Cameras`,

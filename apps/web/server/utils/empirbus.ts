@@ -171,6 +171,7 @@ async function fetchSignalKSwitchTree(config: SignalKSwitchConfig) {
         continue
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SignalK API response shape is dynamic
       return (await response.json()) as Record<string, any>
     } catch {
       continue
@@ -189,8 +190,12 @@ function getSignalKBaseUrls(config: SignalKSwitchConfig): string[] {
   return [...new Set(candidates.map((candidate) => candidate.trim()).filter(Boolean))]
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- SignalK response node shape is dynamic
 function getSignalKLabel(node: any): string | null {
-  if (typeof node?.meta?.displayName?.value === 'string' && node.meta.displayName.value.length > 0) {
+  if (
+    typeof node?.meta?.displayName?.value === 'string' &&
+    node.meta.displayName.value.length > 0
+  ) {
     return node.meta.displayName.value
   }
   if (typeof node?.name?.value === 'string' && node.name.value.length > 0) {
@@ -199,6 +204,7 @@ function getSignalKLabel(node: any): string | null {
   return null
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- SignalK response node shape is dynamic
 function getSignalKWritable(node: any, fallback: boolean): boolean {
   if (typeof node?.meta?.leopard?.writable?.value === 'boolean') {
     return node.meta.leopard.writable.value
@@ -252,7 +258,9 @@ export function buildToggleCommand(switchId: string): { lines: string[]; txn: nu
   const line1 = '1DEF0004 00 13 30 99 FF FF 82 1A'
   const line2 = `1DEF0004 01 06 FE FF FF 02 ${txn.toString(16).toUpperCase().padStart(2, '0')} 00`
   const codeHex = def.commandCode.toString(16).toUpperCase().padStart(2, '0')
-  const payloadHex = def.payload.map((byte) => byte.toString(16).toUpperCase().padStart(2, '0')).join(' ')
+  const payloadHex = def.payload
+    .map((byte) => byte.toString(16).toUpperCase().padStart(2, '0'))
+    .join(' ')
   const line3 = `1DEF0004 02 01 05 ${codeHex} ${payloadHex}`
 
   return { lines: [line1, line2, line3], txn }
@@ -289,7 +297,7 @@ export async function sendCommand(
 
   return new Promise((resolve) => {
     const socket = createSocket('udp4')
-    let linesSent = 0
+    let _linesSent = 0
 
     const sendLine = (index: number) => {
       if (index >= command.lines.length) {
@@ -319,7 +327,7 @@ export async function sendCommand(
           return
         }
 
-        linesSent++
+        _linesSent++
         setTimeout(() => sendLine(index + 1), 15)
       })
     }

@@ -40,7 +40,9 @@ export default defineNuxtConfig({
     signalKFallbackBaseUrl:
       process.env.SIGNALK_FALLBACK_BASE_URL || 'http://signalk-local.tideye.com',
     signalKWriteBaseUrl:
-      process.env.SIGNALK_WRITE_BASE_URL || process.env.SIGNALK_BASE_URL || 'https://signalk-public.tideye.com',
+      process.env.SIGNALK_WRITE_BASE_URL ||
+      process.env.SIGNALK_BASE_URL ||
+      'https://signalk-public.tideye.com',
     signalKWriteClientId: process.env.SIGNALK_WRITE_CLIENT_ID || 'tideye-switching-ui',
     signalKWriteToken: process.env.SIGNALK_WRITE_TOKEN || '',
     public: {

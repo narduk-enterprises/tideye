@@ -46,8 +46,7 @@ export default defineEventHandler(async (event) => {
   )
 
   if (result.success) {
-    const nextState
-      = currentState === 'on' ? 'off' : currentState === 'off' ? 'on' : 'unknown'
+    const nextState = currentState === 'on' ? 'off' : currentState === 'off' ? 'on' : 'unknown'
     setSwitchState(switchId, nextState, 'optimistic-toggle')
     return {
       ...result,
@@ -55,5 +54,8 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  throw createError({ statusCode: result.statusCode || 502, statusMessage: result.message || 'Command failed' })
+  throw createError({
+    statusCode: result.statusCode || 502,
+    statusMessage: result.message || 'Command failed',
+  })
 })

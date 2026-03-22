@@ -15,6 +15,8 @@ interface MapKitMap {
   addEventListener(type: string, handler: (e: MapKitSelectEvent) => void): void
   removeEventListener(type: string, handler: (e: MapKitSelectEvent) => void): void
   overlays?: unknown[]
+  /** Selected annotation (drives callout visibility). */
+  selectedAnnotation: unknown | null
 }
 
 interface MapKitAnnotationRef {
@@ -34,6 +36,9 @@ const PREDICTION_MINUTES = 15
 
 /** AIS marker box — icon is flex-centered; rotation is around this center. */
 const AIS_ANNOTATION_PX = { width: 24, height: 24 } as const
+
+/** Grace period to move pointer from marker onto the callout without closing. */
+const AIS_CALLOUT_HOVER_BRIDGE_MS = 240
 
 // ── Geo Helpers ──────────────────────────────────────────────
 
@@ -403,7 +408,8 @@ function buildCalloutElement(
  * - Native MapKit callouts with full vessel details
  * - 15-minute COG prediction vectors (polyline overlays)
  * - Global and per-vessel vector toggle
- * - Auto-center on selected vessel
+ * - Hover preview callout; click/tap pins it until map background dismisses
+ * - Auto-center on map only while a vessel is pinned (clicked)
  */
 // ── LocalStorage persistence for map overlay toggles ──
 const MAP_PREFS_KEY = 'tideye:map-overlay-prefs'
@@ -479,10 +485,64 @@ export function useAISOverlay() {
   const lastRendered = new Map<string, { lat: number; lng: number }>()
   let refreshTimer: ReturnType<typeof setInterval> | null = null
 
-  // ── Selection tracking ──
-  let selectedVesselId: string | null = null
-  let _selectHandler: ((e: MapKitSelectEvent) => void) | null = null
+  // ── Callout: hover preview vs click/tap pin ──
+  let pinnedVesselId: string | null = null
+  let hoverHideTimer: ReturnType<typeof setTimeout> | null = null
   let _deselectHandler: ((e: MapKitSelectEvent) => void) | null = null
+
+  function clearAISHoverHideTimer() {
+    if (hoverHideTimer) {
+      clearTimeout(hoverHideTimer)
+      hoverHideTimer = null
+    }
+  }
+
+  function scheduleAISCalloutHideOrRestorePinned() {
+    clearAISHoverHideTimer()
+    hoverHideTimer = setTimeout(() => {
+      hoverHideTimer = null
+      const map = getMap()
+      if (!map) return
+      if (pinnedVesselId) {
+        const p = aisAnnotations.get(pinnedVesselId)
+        map.selectedAnnotation = p ?? null
+        if (!p) pinnedVesselId = null
+      } else {
+        map.selectedAnnotation = null
+      }
+    }, AIS_CALLOUT_HOVER_BRIDGE_MS)
+  }
+
+  function attachAISMarkerCalloutBehavior(
+    map: MapKitMap,
+    ann: MapKitAnnotationRef,
+    markerEl: HTMLElement,
+    vesselId: string,
+  ) {
+    markerEl.addEventListener('pointerenter', () => {
+      clearAISHoverHideTimer()
+      map.selectedAnnotation = ann
+    })
+    markerEl.addEventListener('pointerleave', () => {
+      if (pinnedVesselId === vesselId) return
+      scheduleAISCalloutHideOrRestorePinned()
+    })
+    markerEl.addEventListener('click', () => {
+      pinnedVesselId = vesselId
+      clearAISHoverHideTimer()
+      map.selectedAnnotation = ann
+    })
+  }
+
+  function attachAISCalloutHoverBridge(calloutRoot: HTMLElement, vesselId: string) {
+    calloutRoot.addEventListener('pointerenter', () => {
+      clearAISHoverHideTimer()
+    })
+    calloutRoot.addEventListener('pointerleave', () => {
+      if (pinnedVesselId === vesselId) return
+      scheduleAISCalloutHideOrRestorePinned()
+    })
+  }
 
   function getMap(): MapKitMap | null {
     try {
@@ -578,13 +638,16 @@ export function useAISOverlay() {
     const name = vesselDisplayName(v)
     const hasRealName = !name.startsWith('MMSI') && !name.startsWith('urn')
 
-    return new mapkit.Annotation(
+    const map = getMap()
+    if (!map) return null
+
+    const ann = new mapkit.Annotation(
       coord,
       () => {
         // Outer container: sized to match annotation `size` so anchor center = icon center
         const el = document.createElement('div')
         el.style.cssText =
-          'cursor:pointer; position:relative; width:24px; height:24px; display:flex; align-items:center; justify-content:center;'
+          'cursor:pointer; position:relative; width:24px; height:24px; display:flex; align-items:center; justify-content:center; touch-action:manipulation;'
 
         // Icon — centered in the 24×24 box, rotation happens around its own center
         el.innerHTML = cat.iconSvg(heading)
@@ -598,6 +661,11 @@ export function useAISOverlay() {
           el.appendChild(label)
         }
 
+        queueMicrotask(() => {
+          const m = getMap()
+          if (m) attachAISMarkerCalloutBehavior(m, ann, el, v.id)
+        })
+
         return el
       },
       {
@@ -610,20 +678,25 @@ export function useAISOverlay() {
         size: { ...AIS_ANNOTATION_PX },
         data: { vesselId: v.id },
         callout: {
-          calloutElementForAnnotation: () => {
-            const fresh = store.otherVesselsList.find((x) => x.id === v.id)
+          calloutElementForAnnotation: (annotation: { data?: { vesselId?: string } }) => {
+            const id = annotation.data?.vesselId ?? v.id
+            const fresh = store.otherVesselsList.find((x) => x.id === id)
             if (!fresh) return document.createElement('div')
-            return buildCalloutElement(
+            const root = buildCalloutElement(
               fresh,
               lat.value,
               lng.value,
               isVectorEnabled(fresh.id),
               toggleVesselVector,
             )
+            queueMicrotask(() => attachAISCalloutHoverBridge(root, fresh.id))
+            return root
           },
         },
       },
     )
+
+    return ann
   }
 
   // ── Selection Events ──
@@ -632,32 +705,24 @@ export function useAISOverlay() {
     const map = getMap()
     if (!map) return
 
-    _selectHandler = (e: MapKitSelectEvent) => {
-      const ann = e.annotation
-      if (ann?.data?.vesselId) {
-        selectedVesselId = ann.data.vesselId
-        const coord = ann.coordinate
-        if (coord) centerOnCoord(map, coord.latitude, coord.longitude)
-      }
-    }
-
     _deselectHandler = (_e: MapKitSelectEvent) => {
-      selectedVesselId = null
+      clearAISHoverHideTimer()
+      queueMicrotask(() => {
+        const m = getMap()
+        if (m?.selectedAnnotation != null) return
+        pinnedVesselId = null
+      })
     }
 
-    map.addEventListener('select', _selectHandler)
     map.addEventListener('deselect', _deselectHandler)
   }
 
   function unbindSelectionEvents() {
     const map = getMap()
-    if (map) {
-      if (_selectHandler) map.removeEventListener('select', _selectHandler)
-      if (_deselectHandler) map.removeEventListener('deselect', _deselectHandler)
-    }
-    _selectHandler = null
+    if (map && _deselectHandler) map.removeEventListener('deselect', _deselectHandler)
     _deselectHandler = null
-    selectedVesselId = null
+    clearAISHoverHideTimer()
+    pinnedVesselId = null
   }
 
   // ── Main Refresh Loop ──
@@ -672,7 +737,7 @@ export function useAISOverlay() {
       aisAnnotations.clear()
       vectorOverlays.clear()
       lastRendered.clear()
-      selectedVesselId = null
+      pinnedVesselId = null
       return
     }
 
@@ -685,7 +750,7 @@ export function useAISOverlay() {
         map.removeAnnotation(ann)
         aisAnnotations.delete(id)
         lastRendered.delete(id)
-        if (selectedVesselId === id) selectedVesselId = null
+        if (pinnedVesselId === id) pinnedVesselId = null
       }
     }
 
@@ -712,7 +777,7 @@ export function useAISOverlay() {
         lastRendered.set(v.id, { lat: v.lat!, lng: v.lng! })
         anyMoved = true
 
-        if (selectedVesselId === v.id) {
+        if (pinnedVesselId === v.id) {
           centerOnCoord(map, v.lat!, v.lng!)
         }
       }

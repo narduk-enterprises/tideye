@@ -41,6 +41,7 @@ interface SignalKToggleResult {
   success: boolean
   statusCode: number
   message: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SignalK API response shape is dynamic
   response: Record<string, any> | null
 }
 
@@ -134,7 +135,8 @@ export async function createSignalKWriteAccessRequest(
   })
 
   const payload = await readJson(response)
-  const message = getErrorMessage(payload) || `SignalK access request failed with ${response.status}`
+  const message =
+    getErrorMessage(payload) || `SignalK access request failed with ${response.status}`
 
   if (!response.ok) {
     const failedStatus: SignalKWriteAccessStatus = {
@@ -219,6 +221,7 @@ export async function sendSignalKToggleCommand(
         access.status === 'pending'
           ? 'SignalK write access request is still pending approval'
           : 'SignalK write token is not configured',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cast to generic record for API response
       response: access as unknown as Record<string, any>,
     }
   }
@@ -238,10 +241,12 @@ export async function sendSignalKToggleCommand(
 
   const payload = await readJson(response)
   const putResult = payload?.put
-  const message
-    = putResult?.message
-      || payload?.message
-      || (response.ok ? `Sent ${def.label} toggle via SignalK` : `SignalK write failed with ${response.status}`)
+  const message =
+    putResult?.message ||
+    payload?.message ||
+    (response.ok
+      ? `Sent ${def.label} toggle via SignalK`
+      : `SignalK write failed with ${response.status}`)
 
   return {
     success: response.ok,
@@ -270,10 +275,13 @@ async function refreshPersistedRequestStatus(
     }
   }
 
-  const response = await fetch(`${resolveSignalKWriteBaseUrl(config)}${SIGNALK_REQUEST_STATUS_PREFIX}${persisted.requestId}`, {
-    method: 'GET',
-    headers: { Accept: 'application/json' },
-  })
+  const response = await fetch(
+    `${resolveSignalKWriteBaseUrl(config)}${SIGNALK_REQUEST_STATUS_PREFIX}${persisted.requestId}`,
+    {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    },
+  )
 
   if (!response.ok) {
     return {
@@ -293,8 +301,8 @@ async function refreshPersistedRequestStatus(
   const payload = await readJson(response)
   const permission = payload?.accessRequest?.permission
   const token = normalizeString(payload?.accessRequest?.token)
-  const nextStatus: PersistedAccessState['status']
-    = permission === 'APPROVED'
+  const nextStatus: PersistedAccessState['status'] =
+    permission === 'APPROVED'
       ? 'approved'
       : permission === 'DENIED'
         ? 'denied'
@@ -361,17 +369,20 @@ function resolveSignalKWriteBaseUrl(config: SignalKWriteConfig): string {
   return DEFAULT_WRITE_BASE_URL
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- JSON response shape is dynamic
 async function readJson(response: Response): Promise<Record<string, any> | null> {
   const text = await response.text()
   if (!text) return null
 
   try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- JSON response shape is dynamic
     return JSON.parse(text) as Record<string, any>
   } catch {
     return { message: text }
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- loose payload type for error extraction
 function getErrorMessage(payload: Record<string, any> | null): string | null {
   if (!payload) return null
   if (typeof payload.message === 'string' && payload.message.length > 0) {

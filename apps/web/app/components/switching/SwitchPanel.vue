@@ -22,26 +22,32 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="switch-panel">
+  <div class="flex flex-col gap-8 max-w-3xl mx-auto">
     <!-- Error Banner -->
-    <div v-if="error" class="panel-banner panel-banner--error">
+    <div
+      v-if="error"
+      class="flex items-center gap-3 px-4 py-3 rounded-(--radius-card) border border-error bg-[color-mix(in_srgb,var(--color-error-500)_10%,var(--color-bg-elevated))]"
+    >
       <UIcon name="i-lucide-alert-triangle" class="text-lg text-error" />
       <span class="text-sm text-error">{{ error }}</span>
     </div>
 
     <!-- Success Banner -->
-    <div v-if="lastAction" class="panel-banner panel-banner--success">
+    <div
+      v-if="lastAction"
+      class="flex items-center gap-3 px-4 py-3 rounded-(--radius-card) border border-success bg-[color-mix(in_srgb,var(--color-success-500)_10%,var(--color-bg-elevated))]"
+    >
       <UIcon name="i-lucide-check-circle" class="text-lg text-success" />
       <span class="text-sm text-success">{{ lastAction }}</span>
     </div>
 
     <!-- Lights Section -->
-    <div class="switch-section">
-      <div class="section-header">
+    <div class="flex flex-col gap-3">
+      <div class="flex items-center gap-2 px-1">
         <UIcon name="i-lucide-lightbulb" class="text-lg text-primary" />
-        <h3 class="section-title">Lights</h3>
+        <h3 class="text-base font-semibold text-default m-0">Lights</h3>
       </div>
-      <div class="switch-grid">
+      <div class="flex flex-col gap-2 sm:grid sm:grid-cols-2 sm:gap-3">
         <SwitchingSwitchControl
           v-for="sw in lights"
           :key="sw.id"
@@ -57,12 +63,12 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- Pumps Section -->
-    <div class="switch-section">
-      <div class="section-header">
+    <div class="flex flex-col gap-3">
+      <div class="flex items-center gap-2 px-1">
         <UIcon name="i-lucide-droplets" class="text-lg text-info" />
-        <h3 class="section-title">Pumps</h3>
+        <h3 class="text-base font-semibold text-default m-0">Pumps</h3>
       </div>
-      <div class="switch-grid">
+      <div class="flex flex-col gap-2 sm:grid sm:grid-cols-2 sm:gap-3">
         <SwitchingSwitchControl
           v-for="sw in pumps"
           :key="sw.id"
@@ -78,7 +84,7 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- Footer -->
-    <div class="panel-footer">
+    <div class="flex items-start gap-2 px-4 py-3 rounded-(--radius-card) bg-muted">
       <UIcon name="i-lucide-info" class="text-sm text-dimmed" />
       <span class="text-xs text-dimmed">
         State metadata is read from the SignalK Leopard plugin. Commands are sent server-side over
@@ -87,75 +93,3 @@ onBeforeUnmount(() => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.switch-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-  max-width: 48rem;
-  margin: 0 auto;
-}
-
-.panel-banner {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius-card);
-  border: 1px solid;
-}
-
-.panel-banner--error {
-  background: color-mix(in srgb, var(--color-error-500) 10%, var(--color-bg-elevated));
-  border-color: var(--color-error-500);
-}
-
-.panel-banner--success {
-  background: color-mix(in srgb, var(--color-success-500) 10%, var(--color-bg-elevated));
-  border-color: var(--color-success-500);
-}
-
-.switch-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0 0.25rem;
-}
-
-.section-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--color-text-default);
-  margin: 0;
-}
-
-.switch-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-@media (min-width: 640px) {
-  .switch-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.75rem;
-  }
-}
-
-.panel-footer {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius-card);
-  background: var(--color-bg-muted);
-}
-</style>

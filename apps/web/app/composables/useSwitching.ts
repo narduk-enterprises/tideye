@@ -19,13 +19,13 @@ export function useSwitching() {
 
   const fetchStates = async () => {
     try {
-      // eslint-disable-next-line nuxt-guardrails/no-raw-fetch -- composable, not a store; CSRF not needed on GET
       const data = await $fetch<Record<string, SwitchState>>('/api/switching/state')
       switches.value = data
       error.value = null
-    } catch (err: any) {
-      console.warn('[Switching] Failed to fetch states:', err.message || err)
-      error.value = err.data?.message || err.message || 'Failed to load switch states'
+    } catch (err: unknown) {
+      const e = err as { data?: { message?: string }; message?: string }
+      console.warn('[Switching] Failed to fetch states:', e.message || err)
+      error.value = e.data?.message || e.message || 'Failed to load switch states'
     }
   }
 
@@ -38,14 +38,13 @@ export function useSwitching() {
     lastAction.value = null
 
     try {
-      // eslint-disable-next-line nuxt-guardrails/no-raw-fetch -- composable, not a store; CSRF header added manually
       const result = await $fetch<ToggleResult>('/api/switching/command', {
         method: 'POST',
         body: { switchId },
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
       })
-      const nextState
-        = result?.state === 'on' || result?.state === 'off'
+      const nextState =
+        result?.state === 'on' || result?.state === 'off'
           ? result.state
           : sw.state === 'on'
             ? 'off'
@@ -63,9 +62,10 @@ export function useSwitching() {
       refreshTimeout = setTimeout(() => {
         fetchStates().catch(() => {})
       }, 1500)
-    } catch (err: any) {
-      const msg = err.data?.message || err.statusMessage || err.message || `Failed to toggle ${sw.label}`
-      error.value = msg
+    } catch (err: unknown) {
+      const e = err as { data?: { message?: string }; statusMessage?: string; message?: string }
+      error.value =
+        e.data?.message || e.statusMessage || e.message || `Failed to toggle ${sw.label}`
     } finally {
       loading.value = { ...loading.value, [switchId]: false }
     }
