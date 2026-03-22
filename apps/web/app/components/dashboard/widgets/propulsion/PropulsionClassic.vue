@@ -95,12 +95,12 @@ const getStateColor = (state: string): string => {
 }
 
 .no-data-text {
-  color: var(--color-text-tertiary);
+  color: var(--te-label);
   font-size: 0.875rem;
 }
 
 .engine-card {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--te-widget-bg);
   border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 1rem;
@@ -120,7 +120,7 @@ const getStateColor = (state: string): string => {
 .engine-label {
   font-size: 1rem;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: var(--te-value);
 }
 
 .engine-state {
@@ -129,7 +129,7 @@ const getStateColor = (state: string): string => {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   padding: 0.25rem 0.5rem;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--te-widget-bg);
   border-radius: 4px;
 }
 
@@ -147,7 +147,7 @@ const getStateColor = (state: string): string => {
 
 .metric-label {
   font-size: 0.75rem;
-  color: var(--color-text-secondary);
+  color: var(--te-unit);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -155,7 +155,7 @@ const getStateColor = (state: string): string => {
 .metric-value {
   font-size: 1.25rem;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: var(--te-value);
   font-family: var(--font-mono, monospace);
 }
 </style>

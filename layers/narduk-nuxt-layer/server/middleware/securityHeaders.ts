@@ -68,6 +68,16 @@ export default defineEventHandler((event) => {
   const finalScriptSrc = `script-src ${Array.from(new Set(baseScriptSrc)).join(' ')}`
   const finalConnectSrc = `connect-src ${Array.from(new Set(baseConnectSrc)).join(' ')}`
 
+  const baseFrameSrc = ["'self'"]
+  if (config.public.cspFrameSrc) {
+    const customFrames = config.public.cspFrameSrc
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+    baseFrameSrc.push(...customFrames)
+  }
+  const finalFrameSrc = `frame-src ${Array.from(new Set(baseFrameSrc)).join(' ')}`
+
   const diagnosticHeaders: Record<string, string> = {}
   if (appVersion) diagnosticHeaders['X-App-Version'] = appVersion
   if (buildVersion) diagnosticHeaders['X-Build-Version'] = buildVersion
@@ -86,6 +96,7 @@ export default defineEventHandler((event) => {
       "img-src 'self' data: https:",
       "font-src 'self' https://fonts.gstatic.com",
       finalConnectSrc,
+      finalFrameSrc,
       "frame-ancestors 'none'",
     ].join('; '),
     ...diagnosticHeaders,

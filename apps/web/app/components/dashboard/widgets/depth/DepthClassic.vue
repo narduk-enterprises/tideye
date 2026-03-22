@@ -87,20 +87,20 @@ const formatDepth = (depth: number): string => {
 .depth-value {
   font-size: 3rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.9);
-  font-family: var(--font-mono);
+  color: var(--te-depth);
+  font-family: var(--te-font-data);
   text-align: center;
 }
 
 .depth-unit {
   font-size: 1.5rem;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--te-unit);
   margin-left: 0.5rem;
 }
 
 .depth-trend {
   flex: 1;
-  background: rgba(0, 0, 0, 0.2);
+  background: color-mix(in srgb, var(--te-depth) 8%, transparent);
   border-radius: 4px;
   padding: 0.5rem;
 }
@@ -131,16 +131,16 @@ const formatDepth = (depth: number): string => {
   background-image: linear-gradient(
     0deg,
     transparent calc(20% - 1px),
-    rgba(255, 255, 255, 0.05) 20%,
+    var(--te-metric-border) 20%,
     transparent calc(20% + 1px),
     transparent calc(40% - 1px),
-    rgba(255, 255, 255, 0.05) 40%,
+    var(--te-metric-border) 40%,
     transparent calc(40% + 1px),
     transparent calc(60% - 1px),
-    rgba(255, 255, 255, 0.05) 60%,
+    var(--te-metric-border) 60%,
     transparent calc(60% + 1px),
     transparent calc(80% - 1px),
-    rgba(255, 255, 255, 0.05) 80%,
+    var(--te-metric-border) 80%,
     transparent calc(80% + 1px)
   );
 }

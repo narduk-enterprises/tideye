@@ -64,10 +64,8 @@ defineProps<{
   border-radius: 6px;
   overflow: hidden;
   position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.05),
-    inset 0 1px 1px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--te-metric-border);
+  box-shadow: var(--te-widget-shadow);
 }
 
 .bar-fill {
@@ -81,15 +79,13 @@ defineProps<{
     rgba(255, 255, 255, 0.15) 0%,
     rgba(255, 255, 255, 0.05) 100%
   );
-  box-shadow:
-    0 -1px 2px rgba(0, 0, 0, 0.1),
-    inset 0 1px 2px rgba(255, 255, 255, 0.1);
+  box-shadow: var(--te-widget-shadow);
 }
 
 .tank-percentage {
   font-size: 1.1rem;
-  font-family: 'SF Mono', monospace;
-  color: rgba(255, 255, 255, 0.9);
+  font-family: var(--te-font-data);
+  color: var(--te-value);
   font-weight: 500;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   margin-top: 0.1rem;
@@ -97,7 +93,7 @@ defineProps<{
 
 .tank-name {
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--te-label);
   text-transform: capitalize;
   letter-spacing: 0.02em;
   font-weight: 400;

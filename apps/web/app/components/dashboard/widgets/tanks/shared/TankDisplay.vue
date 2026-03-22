@@ -56,18 +56,18 @@ defineProps<{
 
 .tank-name {
   font-size: 1.1rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--te-value);
 }
 
 .tank-percentage {
   font-size: 1.25rem;
-  font-family: 'SF Mono', monospace;
-  color: rgba(255, 255, 255, 0.9);
+  font-family: var(--te-font-data);
+  color: var(--te-value);
 }
 
 .tank-gauge {
   height: 8px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--te-metric-border);
   border-radius: 4px;
   overflow: hidden;
 }

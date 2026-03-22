@@ -79,17 +79,16 @@ const sizeClasses = {
 }
 
 .cardinal {
-  font-family: var(--font-mono);
+  font-family: var(--te-font-data);
   font-weight: 500;
   display: inline-block;
   text-align: center;
 }
 
 .angle-value {
-  font-family: var(--font-mono);
+  font-family: var(--te-font-data);
   font-weight: 500;
-  opacity: 1;
-  color: #ffffff;
+  color: var(--te-unit);
   display: inline-block;
   text-align: center;
 }

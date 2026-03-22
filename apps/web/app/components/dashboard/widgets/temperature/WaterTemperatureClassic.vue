@@ -31,8 +31,8 @@ const waterTemp = computed(() => {
 
 .temp-value {
   font-size: 3.15rem;
-  font-family: var(--font-mono);
-  color: var(--color-text-primary);
+  font-family: var(--te-font-data);
+  color: var(--te-value);
   line-height: 1;
   margin-bottom: 0.5rem;
 }

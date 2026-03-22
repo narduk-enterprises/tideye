@@ -1,5 +1,8 @@
 import type { Component } from 'vue'
 
+/** Dashboard tile height tier — grid row spans on desktop, min-height when stacked on mobile. */
+export type WidgetTileSize = 'compact' | 'standard' | 'expanded'
+
 export type WidgetId =
   | 'spacer'
   | 'wind'
@@ -27,6 +30,8 @@ export interface BaseWidget {
   component: Component
   name: string
   maxStates: number
+  /** Layout tier; defaults to standard when omitted (restored layouts merge from registry). */
+  tileSize?: WidgetTileSize
 }
 
 export interface Widget extends BaseWidget {

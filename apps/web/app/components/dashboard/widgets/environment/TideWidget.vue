@@ -75,7 +75,7 @@ const formatTime = (timeStr: string | null): string => {
 }
 
 .no-data {
-  color: var(--color-text-tertiary);
+  color: var(--te-label);
   font-size: 0.875rem;
 }
 
@@ -97,7 +97,7 @@ const formatTime = (timeStr: string | null): string => {
 
 .tide-label {
   font-size: 0.75rem;
-  color: var(--color-text-secondary);
+  color: var(--te-unit);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -105,7 +105,7 @@ const formatTime = (timeStr: string | null): string => {
 .tide-value {
   font-size: 2rem;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: var(--te-value);
   font-family: var(--font-mono, monospace);
 }
 
@@ -121,13 +121,13 @@ const formatTime = (timeStr: string | null): string => {
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--te-widget-bg);
   border-radius: 8px;
 }
 
 .extreme-label {
   font-size: 0.75rem;
-  color: var(--color-text-secondary);
+  color: var(--te-unit);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -135,13 +135,13 @@ const formatTime = (timeStr: string | null): string => {
 .extreme-value {
   font-size: 1.5rem;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: var(--te-value);
   font-family: var(--font-mono, monospace);
 }
 
 .extreme-time {
   font-size: 0.75rem;
-  color: var(--color-text-tertiary);
+  color: var(--te-label);
   font-family: var(--font-mono, monospace);
 }
 

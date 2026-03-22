@@ -1,4 +1,5 @@
 // @ts-nocheck -- Ported from tideye-dashboard, to be migrated incrementally
+import { useLocalStorage } from '@vueuse/core'
 import type { Widget } from '~/types/widgets'
 
 export interface View {

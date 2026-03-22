@@ -617,7 +617,7 @@ function addAnnotations() {
   const annotations = props.items.map((item) => {
     const coord = new mapkit.Coordinate(item.lat, item.lng)
     const opts: Record<string, unknown> = {
-      anchorOffset: new DOMPoint(0, -6),
+      anchorOffset: new DOMPoint(0, 0),
       calloutEnabled: false,
       size: props.annotationSize,
       data: { id: item.id },
@@ -633,7 +633,7 @@ function addAnnotations() {
 
         const wrapper = import.meta.client ? document.createElement('div') : ({} as HTMLElement)
         wrapper.setAttribute('data-map-pin', '')
-        wrapper.style.cursor = 'pointer'
+        wrapper.style.cssText = `cursor: pointer; width: ${props.annotationSize.width}px; height: ${props.annotationSize.height}px; display: flex; align-items: center; justify-content: center;`
         wrapper.appendChild(element)
         wrapper.addEventListener('click', (e) => {
           e.stopPropagation()
@@ -816,13 +816,19 @@ watch(
   () => props.items,
   () => {
     if (!map) return
+    // When preserving region (e.g. live vessel tracking), only update annotations
+    // without resetting selection or re-zooming, so the map stays put during HMR/edits
+    if (props.preserveRegion) {
+      clearPinCleanups()
+      map.removeAnnotations(map.annotations)
+      addAnnotations()
+      return
+    }
     selectedId.value = null
     clearPinCleanups()
     map.removeAnnotations(map.annotations)
-    if (!props.preserveRegion) {
-      overviewRegion = computeBoundingRegion()
-      map.setRegionAnimated(overviewRegion, true)
-    }
+    overviewRegion = computeBoundingRegion()
+    map.setRegionAnimated(overviewRegion, true)
     addAnnotations()
   },
   { deep: false },

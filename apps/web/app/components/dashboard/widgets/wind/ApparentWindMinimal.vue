@@ -10,7 +10,7 @@ import CardinalDirection from '../shared/CardinalDirection.vue'
       <div class="wind-content">
         <div class="wind-display">
           <div class="speed">{{ apparentWindSpeed }}<span class="unit">kts</span></div>
-          <CardinalDirection :degrees="Number(apparentWindAngle)" color="var(--color-warning)" />
+          <CardinalDirection :degrees="Number(apparentWindAngle)" color="var(--te-wind)" />
         </div>
       </div>
     </WidgetContainer>
@@ -35,14 +35,14 @@ import CardinalDirection from '../shared/CardinalDirection.vue'
 
 .speed {
   font-size: 3.5rem;
-  font-family: var(--font-mono);
-  color: var(--color-text-primary);
+  font-family: var(--te-font-data);
+  color: var(--te-value);
   line-height: 1;
 }
 
 .unit {
   font-size: 1.5rem;
-  color: var(--color-text-tertiary);
+  color: var(--te-unit);
   margin-left: 0.5rem;
 }
 </style>

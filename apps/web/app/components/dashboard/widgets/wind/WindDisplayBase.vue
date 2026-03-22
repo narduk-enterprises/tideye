@@ -49,9 +49,9 @@ defineProps<{
 
 .speed-value {
   font-size: 5.5rem;
-  font-family: var(--font-mono);
+  font-family: var(--te-font-data);
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.95);
+  color: var(--te-value);
   line-height: 1;
   letter-spacing: -0.02em;
   text-shadow:
@@ -63,7 +63,7 @@ defineProps<{
   font-size: 0.875rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--te-label);
   margin-top: 0.5rem;
 }
 

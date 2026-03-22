@@ -59,7 +59,7 @@ const getStatusColor = (power: number) => {
 }
 
 .panel-section {
-  background: rgba(0, 0, 0, 0.2);
+  background: color-mix(in srgb, var(--te-value) 8%, transparent);
   border-radius: 8px;
   padding: 0.5rem;
 }
@@ -73,7 +73,7 @@ const getStatusColor = (power: number) => {
 
 .panel-name {
   font-size: 0.95rem;
-  color: var(--color-text-primary);
+  color: var(--te-value);
 }
 
 .panel-mode {
@@ -82,7 +82,7 @@ const getStatusColor = (power: number) => {
   border-radius: 4px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  background: rgba(0, 0, 0, 0.2);
+  background: color-mix(in srgb, var(--te-value) 8%, transparent);
 }
 
 .panel-metrics {
@@ -97,13 +97,13 @@ const getStatusColor = (power: number) => {
 
 .metric-value {
   font-size: 1rem;
-  font-family: var(--font-mono);
-  color: var(--color-text-primary);
+  font-family: var(--te-font-data);
+  color: var(--te-value);
 }
 
 .metric-label {
   font-size: 0.6rem;
-  color: var(--color-text-tertiary);
+  color: var(--te-label);
   letter-spacing: 0.05em;
   margin-top: 0.2rem;
 }

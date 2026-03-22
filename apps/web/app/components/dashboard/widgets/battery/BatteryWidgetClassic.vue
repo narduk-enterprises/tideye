@@ -3,9 +3,9 @@ import BatteryWidgetBase from './BatteryWidgetBase.vue'
 
 const getStatusColor = (percentage: string) => {
   const value = Number.parseFloat(percentage)
-  if (value >= 80) return '#4CAF50' // Green for high charge
-  if (value >= 20) return '#FFA726' // Orange for medium charge
-  return '#FF5252' // Red for low charge
+  if (value >= 80) return 'var(--te-battery)'
+  if (value >= 20) return 'var(--te-battery-warn)'
+  return 'var(--te-battery-danger)'
 }
 
 const getCircleOffset = (percentage: string) => {
@@ -29,7 +29,7 @@ const getCircleOffset = (percentage: string) => {
               cy="50"
               r="45"
               fill="none"
-              stroke="rgba(255, 255, 255, 0.1)"
+              stroke="var(--te-metric-border)"
               stroke-width="4"
             />
             <!-- Progress circle -->
@@ -121,8 +121,8 @@ const getCircleOffset = (percentage: string) => {
 
 .percentage {
   font-size: 1.25rem;
-  font-family: var(--font-mono);
-  color: rgba(255, 255, 255, 0.9);
+  font-family: var(--te-font-data);
+  color: var(--te-value);
   position: relative;
   z-index: 1;
 }
@@ -137,19 +137,19 @@ const getCircleOffset = (percentage: string) => {
   padding: 0.25rem 0.75rem;
   border-radius: 4px;
   font-size: 0.875rem;
-  font-family: var(--font-mono);
+  font-family: var(--te-font-data);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .status-badge.charging {
-  background: rgba(76, 175, 80, 0.2);
-  color: #4caf50;
+  background: color-mix(in srgb, var(--te-charging) 15%, transparent);
+  color: var(--te-charging);
 }
 
 .status-badge.discharging {
-  background: rgba(255, 82, 82, 0.2);
-  color: #ff5252;
+  background: color-mix(in srgb, var(--te-discharging) 15%, transparent);
+  color: var(--te-discharging);
 }
 
 .time-section {
@@ -160,13 +160,13 @@ const getCircleOffset = (percentage: string) => {
 
 .time {
   font-size: 1.5rem;
-  font-family: var(--font-mono);
-  color: rgba(255, 255, 255, 0.9);
+  font-family: var(--te-font-data);
+  color: var(--te-value);
 }
 
 .time-label {
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--te-label);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -176,7 +176,7 @@ const getCircleOffset = (percentage: string) => {
   grid-template-columns: repeat(3, 1fr);
   gap: 0.75rem;
   padding: 0.5rem 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--te-metric-border);
   margin-top: auto;
 }
 
@@ -188,19 +188,17 @@ const getCircleOffset = (percentage: string) => {
 }
 
 .metric-value {
-  font-family: var(--font-mono);
+  font-family: var(--te-font-data);
   font-size: 1rem;
-  color: var(--color-text-primary);
+  color: var(--te-value);
   line-height: 1;
-  opacity: 0.8;
 }
 
 .metric-label {
   font-size: 0.6rem;
-  color: var(--color-text-tertiary);
+  color: var(--te-label);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  opacity: 0.6;
 }
 
 .capacity-metrics {
@@ -208,7 +206,7 @@ const getCircleOffset = (percentage: string) => {
   grid-template-columns: repeat(2, 1fr);
   gap: 0.75rem;
   padding: 0.5rem 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--te-metric-border);
 }
 
 .metric-item {

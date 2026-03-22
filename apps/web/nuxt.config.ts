@@ -9,7 +9,9 @@ export default defineNuxtConfig({
   extends: ['@narduk-enterprises/narduk-nuxt-template-layer'],
 
   // nitro-cloudflare-dev proxies D1 bindings to the local dev server
-  modules: ['nitro-cloudflare-dev'],
+  modules: ['nitro-cloudflare-dev', '@pinia/nuxt'],
+
+  css: ['~/assets/css/widgets.css'],
 
   nitro: {
     cloudflareDev: {
@@ -31,6 +33,16 @@ export default defineNuxtConfig({
     posthogApiKey: process.env.POSTHOG_PERSONAL_API_KEY || '',
     gaPropertyId: process.env.GA_PROPERTY_ID || '',
     posthogProjectId: process.env.POSTHOG_PROJECT_ID || '',
+    // EmpirBus/YDWG switching (server-only, local network)
+    ydwgHost: process.env.YDWG_HOST || '198.18.7.68',
+    ydwgPort: process.env.YDWG_PORT || '1457',
+    signalKBaseUrl: process.env.SIGNALK_BASE_URL || 'https://signalk-public.tideye.com',
+    signalKFallbackBaseUrl:
+      process.env.SIGNALK_FALLBACK_BASE_URL || 'http://signalk-local.tideye.com',
+    signalKWriteBaseUrl:
+      process.env.SIGNALK_WRITE_BASE_URL || process.env.SIGNALK_BASE_URL || 'https://signalk-public.tideye.com',
+    signalKWriteClientId: process.env.SIGNALK_WRITE_CLIENT_ID || 'tideye-switching-ui',
+    signalKWriteToken: process.env.SIGNALK_WRITE_TOKEN || '',
     public: {
       appUrl: process.env.SITE_URL || 'https://tideye.nard.uk',
       appName: process.env.APP_NAME || 'Tideye',
@@ -40,6 +52,8 @@ export default defineNuxtConfig({
       gaMeasurementId: process.env.GA_MEASUREMENT_ID || '',
       // IndexNow
       indexNowKey: process.env.INDEXNOW_KEY || '',
+      /** MastCam / other embedded live views (CSP frame-src) */
+      cspFrameSrc: process.env.CSP_FRAME_SRC || 'https://mastcam.tideye.com',
     },
   },
 

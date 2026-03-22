@@ -245,12 +245,12 @@ const sourceDisplayName = computed(() => {
 .artwork-placeholder {
   width: 100%;
   height: 100%;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--te-widget-bg);
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  box-shadow: var(--te-widget-shadow);
 }
 
 .artwork-placeholder i {
@@ -268,7 +268,7 @@ const sourceDisplayName = computed(() => {
 .track-name {
   font-size: 0.95rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.95);
+  color: var(--te-value);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -276,7 +276,7 @@ const sourceDisplayName = computed(() => {
 
 .track-artist {
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--te-unit);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -293,15 +293,15 @@ const sourceDisplayName = computed(() => {
 
 .time-display {
   font-size: 0.75rem;
-  font-family: var(--font-mono);
-  color: rgba(255, 255, 255, 0.4);
+  font-family: var(--te-font-data);
+  color: var(--te-label);
   min-width: 3.5rem;
 }
 
 .progress-bar {
   flex: 1;
   height: 2px;
-  background: rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--te-value) 8%, transparent);
   border-radius: 1px;
   overflow: hidden;
   position: relative;
@@ -318,7 +318,7 @@ const sourceDisplayName = computed(() => {
   display: flex;
   justify-content: space-between;
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--te-label);
 }
 
 .source {
@@ -331,7 +331,7 @@ const sourceDisplayName = computed(() => {
 
 /* Add error state styles */
 .track-name.error {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--te-label);
   font-style: italic;
 }
 

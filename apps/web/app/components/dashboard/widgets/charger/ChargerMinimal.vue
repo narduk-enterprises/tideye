@@ -32,7 +32,7 @@ const getStatusColor = (power: number) => {
 
 .power-display {
   font-size: 2.5rem;
-  font-family: var(--font-mono);
+  font-family: var(--te-font-data);
   font-weight: 500;
   text-align: center;
   line-height: 1;

@@ -72,14 +72,14 @@ const getEfficiency = (output: number, input: number) => {
 
 .total-label {
   font-size: 0.875rem;
-  color: var(--color-text-secondary);
+  color: var(--te-unit);
 }
 
 .total-value {
   font-size: 2.5rem;
-  font-family: var(--font-mono);
+  font-family: var(--te-font-data);
   font-weight: 500;
-  color: var(--color-text-primary);
+  color: var(--te-value);
   line-height: 1;
   margin-top: 0.25rem;
 }
@@ -90,7 +90,7 @@ const getEfficiency = (output: number, input: number) => {
 }
 
 .inverter-detail {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--te-widget-bg);
   border-radius: 0.5rem;
   padding: 0.75rem;
 }
@@ -114,11 +114,11 @@ const getEfficiency = (output: number, input: number) => {
 
 .metric-label {
   font-size: 0.75rem;
-  color: var(--color-text-secondary);
+  color: var(--te-unit);
 }
 
 .metric-value {
-  font-family: var(--font-mono);
+  font-family: var(--te-font-data);
   font-size: 0.875rem;
 }
 </style>

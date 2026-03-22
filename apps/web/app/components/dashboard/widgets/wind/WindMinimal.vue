@@ -31,21 +31,21 @@ import WidgetContainer from '../shared/WidgetContainer.vue'
 
 .speed {
   font-size: 3.15rem;
-  font-family: var(--font-mono);
-  color: var(--color-text-primary);
+  font-family: var(--te-font-data);
+  color: var(--te-value);
   line-height: 1;
   margin-bottom: 0.5rem;
 }
 
 .angle {
   font-size: 1.5rem;
-  font-family: var(--font-mono);
-  color: var(--color-text-secondary);
+  font-family: var(--te-font-data);
+  color: var(--te-unit);
 }
 
 .unit {
   font-size: 1.5rem;
-  color: var(--color-text-tertiary);
+  color: var(--te-label);
   margin-left: 0.5rem;
 }
 </style>

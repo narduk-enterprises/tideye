@@ -205,7 +205,7 @@ const nowPlaying = computed(() => {
 
 .stat-label {
   font-size: 0.7rem;
-  color: #4caf50;
+  color: var(--te-ok);
   font-weight: bold;
   text-transform: uppercase;
   line-height: 1;
@@ -227,7 +227,7 @@ const nowPlaying = computed(() => {
 
 .time-remaining {
   font-size: 0.8rem;
-  color: #4caf50;
+  color: var(--te-ok);
   line-height: 1;
 }
 
@@ -322,7 +322,7 @@ const nowPlaying = computed(() => {
 
 .tank-label {
   font-size: 0.7rem;
-  color: #4caf50;
+  color: var(--te-ok);
   font-weight: bold;
   text-transform: uppercase;
   line-height: 1;
@@ -347,7 +347,7 @@ const nowPlaying = computed(() => {
 .tank-bar {
   width: 0.75rem;
   height: 3rem;
-  background: rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--te-value) 8%, transparent);
   border-radius: 2px;
   position: relative;
 }

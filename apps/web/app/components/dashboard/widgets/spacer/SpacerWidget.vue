@@ -16,8 +16,8 @@ import WidgetContainer from '../shared/WidgetContainer.vue'
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.01);
-  border: 1px solid rgba(255, 255, 255, 0.02);
+  background: var(--te-widget-bg);
+  border: 1px solid var(--te-metric-border);
   border-radius: 8px;
   margin: 1px;
 }

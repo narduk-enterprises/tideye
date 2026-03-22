@@ -38,9 +38,9 @@ const tanks = computed(() => ({
 
 const getTankColor = (type: string, level: number) => {
   if (type === 'water') {
-    return level < 0.2 ? '#f44336' : '#2196F3'
+    return level < 0.2 ? 'var(--te-danger)' : 'var(--te-water)'
   }
-  return level < 0.2 ? '#f44336' : '#FFA000'
+  return level < 0.2 ? 'var(--te-danger)' : 'var(--te-fuel-warn)'
 }
 
 const getFuelColor = (totalGallons: number) => {
@@ -51,17 +51,17 @@ const getFuelColor = (totalGallons: number) => {
   }, 0)
 
   if (totalCapacity === 0) {
-    return '#FFA000' // Default orange if no capacity data
+    return 'var(--te-fuel-warn)' // Default orange if no capacity data
   }
 
   const level = totalGallons / totalCapacity
 
   if (level < 0.2) {
-    return '#f44336' // Red for low fuel
+    return 'var(--te-fuel-danger)' // Red for low fuel
   } else if (level < 0.5) {
-    return '#FFA000' // Orange/amber for medium fuel
+    return 'var(--te-fuel-warn)' // Orange/amber for medium fuel
   }
-  return '#4CAF50' // Green for good fuel level
+  return 'var(--te-fuel)' // Green for good fuel level
 }
 
 // Expose the data to child components

@@ -80,7 +80,7 @@ const getGlowFilter = (percentage: number | null) => {
             cy="50"
             r="42"
             fill="none"
-            stroke="rgba(255, 255, 255, 0.1)"
+            stroke="var(--te-metric-border)"
             stroke-width="2"
           />
 
@@ -155,27 +155,27 @@ const getGlowFilter = (percentage: number | null) => {
 }
 
 .percentage {
-  font-family: var(--font-mono);
+  font-family: var(--te-font-data);
   font-size: 2.25rem;
   font-weight: var(--font-weight-regular);
-  color: var(--color-text-primary);
+  color: var(--te-value);
   line-height: 1;
   opacity: 0.9;
 }
 
 .time-remaining {
-  font-family: var(--font-mono);
+  font-family: var(--te-font-data);
   font-size: 0.9rem;
   font-weight: var(--font-weight-regular);
-  color: var(--color-text-secondary);
+  color: var(--te-unit);
   line-height: 1;
 }
 
 .time-until-full {
-  font-family: var(--font-mono);
+  font-family: var(--te-font-data);
   font-size: 0.8rem;
   font-weight: var(--font-weight-regular);
-  color: var(--color-text-secondary);
+  color: var(--te-unit);
   line-height: 1;
   opacity: 0.8;
 }

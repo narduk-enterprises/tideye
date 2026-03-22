@@ -47,9 +47,9 @@ import WidgetContainer from '../shared/WidgetContainer.vue'
 
 .speed-value {
   font-size: 5rem;
-  font-family: var(--font-mono);
+  font-family: var(--te-font-data);
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.95);
+  color: var(--te-value);
   line-height: 1;
   letter-spacing: -0.02em;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
@@ -59,7 +59,7 @@ import WidgetContainer from '../shared/WidgetContainer.vue'
   font-size: 0.875rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--te-label);
   margin-top: 0.25rem;
 }
 
@@ -86,13 +86,13 @@ import WidgetContainer from '../shared/WidgetContainer.vue'
 }
 
 .angle-value {
-  font-family: var(--font-mono);
+  font-family: var(--te-font-data);
   font-size: 1.25rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--te-unit);
 }
 
 .cardinal {
-  font-family: var(--font-mono);
+  font-family: var(--te-font-data);
   font-size: 1rem;
   color: var(--color-warning);
   opacity: 0.8;

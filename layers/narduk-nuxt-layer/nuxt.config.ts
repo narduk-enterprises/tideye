@@ -107,6 +107,8 @@ export default defineNuxtConfig({
       posthogHost: process.env.POSTHOG_HOST || 'https://us.i.posthog.com',
       cspScriptSrc: process.env.CSP_SCRIPT_SRC || '',
       cspConnectSrc: process.env.CSP_CONNECT_SRC || '',
+      /** Comma-separated origins allowed in iframes (frame-src), e.g. https://embed.example.com */
+      cspFrameSrc: process.env.CSP_FRAME_SRC || '',
     },
   },
 

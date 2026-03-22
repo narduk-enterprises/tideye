@@ -139,12 +139,12 @@ const navigation = computed(() => ({
   font-size: 3rem;
   font-weight: 600;
   font-family: var(--font-mono, monospace);
-  color: var(--color-text-primary);
+  color: var(--te-value);
 }
 
 .heading-magnetic {
   font-size: 0.75rem;
-  color: var(--color-text-secondary);
+  color: var(--te-unit);
   font-family: var(--font-mono, monospace);
 }
 
@@ -165,7 +165,7 @@ const navigation = computed(() => ({
 
 .unit-label {
   font-size: 0.75rem;
-  color: var(--color-text-secondary);
+  color: var(--te-unit);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -173,7 +173,7 @@ const navigation = computed(() => ({
 .secondary-value {
   font-size: 1.25rem;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: var(--te-value);
   font-family: var(--font-mono, monospace);
 }
 
@@ -185,7 +185,7 @@ const navigation = computed(() => ({
 
 .section-label {
   font-size: 0.75rem;
-  color: var(--color-text-secondary);
+  color: var(--te-unit);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 0.5rem;
@@ -209,14 +209,14 @@ const navigation = computed(() => ({
 .attitude-label,
 .gnss-label {
   font-size: 0.75rem;
-  color: var(--color-text-secondary);
+  color: var(--te-unit);
 }
 
 .attitude-value,
 .gnss-value {
   font-size: 1rem;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: var(--te-value);
   font-family: var(--font-mono, monospace);
 }
 

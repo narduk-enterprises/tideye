@@ -69,7 +69,7 @@ const getChargingModeLabel = (mode: string) => {
 
 .power-value {
   font-size: 2.5rem;
-  font-family: var(--font-mono);
+  font-family: var(--te-font-data);
   font-weight: 500;
   line-height: 1;
   transition: color 0.3s ease;
@@ -77,7 +77,7 @@ const getChargingModeLabel = (mode: string) => {
 
 .power-label {
   font-size: 0.875rem;
-  color: var(--color-text-secondary);
+  color: var(--te-unit);
   margin-top: 0.25rem;
 }
 
@@ -87,7 +87,7 @@ const getChargingModeLabel = (mode: string) => {
 }
 
 .charger-item {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--te-widget-bg);
   border-radius: 0.5rem;
   padding: 0.75rem;
 }
@@ -105,7 +105,7 @@ const getChargingModeLabel = (mode: string) => {
 
 .charger-mode {
   font-size: 0.875rem;
-  color: var(--color-text-secondary);
+  color: var(--te-unit);
 }
 
 .charger-stats {
@@ -122,10 +122,10 @@ const getChargingModeLabel = (mode: string) => {
 }
 
 .label {
-  color: var(--color-text-secondary);
+  color: var(--te-unit);
 }
 
 .value {
-  font-family: var(--font-mono);
+  font-family: var(--te-font-data);
 }
 </style>

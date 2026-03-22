@@ -23,7 +23,7 @@ defineProps<{
             cy="50"
             r="45"
             fill="none"
-            stroke="rgba(255, 255, 255, 0.1)"
+            stroke="var(--te-metric-border)"
             stroke-width="10"
           />
           <circle
@@ -75,14 +75,14 @@ defineProps<{
 
 .percentage {
   font-size: 1.75rem;
-  font-family: 'SF Mono', monospace;
-  fill: rgba(255, 255, 255, 0.9);
+  font-family: var(--te-font-data);
+  fill: var(--te-value);
   font-weight: 400;
 }
 
 .tank-label {
   font-size: 1.25rem;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--te-label);
   text-align: center;
 }
 </style>

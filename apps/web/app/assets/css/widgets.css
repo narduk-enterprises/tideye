@@ -1,170 +1,133 @@
-/* Base Font Families */
+/* ─── TideEye Widget Design Tokens ─── */
+
 :root {
-  --font-primary: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
-  --font-mono: 'SF Mono', monospace;
-  --font-weight-light: 300;
-  --font-weight-regular: 400;
-  --font-weight-medium: 500;
+  /* Dashboard grid: span × row unit = tile height (tiers in TelemetryDashboard) */
+  --te-dashboard-row-unit: clamp(0.68rem, 0.42rem + 0.85vw, 0.82rem);
+
+  /* Widget typography */
+  --te-font-data: 'SF Mono', 'Fira Code', ui-monospace, monospace;
+
+  /* Widget card surface */
+  --te-widget-bg: var(--color-bg-default);
+  --te-widget-border: var(--color-border-default);
+  --te-widget-shadow: var(--shadow-card);
+
+  /* Widget text colors */
+  --te-title: var(--color-text-dimmed);
+  --te-value: var(--color-text-default);
+  --te-unit: var(--color-text-muted);
+  --te-label: var(--color-text-dimmed);
+  --te-metric-border: var(--color-border-default);
+
+  /* Semantic widget accent colors */
+  --te-battery: #059669;
+  --te-battery-warn: #d97706;
+  --te-battery-danger: #dc2626;
+  --te-wind: #0891b2;
+  --te-water: #2563eb;
+  --te-fuel: #059669;
+  --te-fuel-warn: #d97706;
+  --te-fuel-danger: #dc2626;
+  --te-solar: #eab308;
+  --te-depth: #0284c7;
+  --te-nav: #0891b2;
+  --te-temp: #f97316;
+
+  /* Status colors */
+  --te-ok: #059669;
+  --te-warn: #d97706;
+  --te-danger: #dc2626;
+  --te-info: #0891b2;
+  --te-charging: #059669;
+  --te-discharging: #dc2626;
 }
 
-/* Text Sizes */
-.large-value {
+.dark {
+  /* In dark mode, brighten the accent colors slightly */
+  --te-battery: #34d399;
+  --te-wind: #22d3ee;
+  --te-water: #60a5fa;
+  --te-fuel: #34d399;
+  --te-solar: #facc15;
+  --te-depth: #38bdf8;
+  --te-nav: #22d3ee;
+  --te-ok: #34d399;
+  --te-warn: #fbbf24;
+  --te-danger: #f87171;
+  --te-info: #22d3ee;
+  --te-charging: #34d399;
+  --te-discharging: #f87171;
+}
+
+/* ─── Widget Typography Classes ─── */
+
+.te-large-value {
   font-size: 5rem;
-  font-family: var(--font-mono);
-  font-weight: var(--font-weight-medium);
-  color: rgba(255, 255, 255, 0.95);
+  font-family: var(--te-font-data);
+  font-weight: 500;
+  color: var(--te-value);
   letter-spacing: -0.02em;
-  text-shadow:
-    0 0 10px rgba(255, 255, 255, 0.3),
-    0 0 20px rgba(255, 255, 255, 0.2);
+  line-height: 1;
 }
 
-.primary-value {
+.te-primary-value {
   font-size: 2.75rem;
-  font-family: var(--font-mono);
-  font-weight: var(--font-weight-light);
-  color: rgba(255, 255, 255, 0.95);
+  font-family: var(--te-font-data);
+  font-weight: 300;
+  color: var(--te-value);
   letter-spacing: -0.02em;
-  text-shadow:
-    0 0 10px rgba(255, 255, 255, 0.3),
-    0 0 20px rgba(255, 255, 255, 0.2);
+  line-height: 1;
 }
 
-.secondary-value {
+.te-secondary-value {
   font-size: 1.5rem;
-  font-family: var(--font-mono);
-  font-weight: var(--font-weight-regular);
-  color: rgba(255, 255, 255, 0.8);
+  font-family: var(--te-font-data);
+  font-weight: 400;
+  color: var(--te-value);
   letter-spacing: -0.01em;
+  line-height: 1;
 }
 
-.unit-label {
+.te-unit-label {
   font-size: 1rem;
-  font-family: var(--font-primary);
-  font-weight: var(--font-weight-regular);
-  color: rgba(255, 255, 255, 0.5);
+  font-weight: 400;
+  color: var(--te-unit);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
-.widget-title {
-  font-size: 0.875rem;
-  font-family: var(--font-primary);
-  font-weight: var(--font-weight-regular);
-  color: rgba(255, 255, 255, 0.5);
-  letter-spacing: 0.05em;
+.te-widget-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--te-title);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-/* Colors */
-:root {
-  --color-success: rgb(76, 217, 100);
-  --color-warning: #ffa000;
-  --color-danger: #ff5252;
-  --color-info: #4b89dc;
-  --color-text-primary: rgba(255, 255, 255, 0.95);
-  --color-text-secondary: rgba(255, 255, 255, 0.7);
-  --color-text-tertiary: rgba(255, 255, 255, 0.5);
-}
+/* ─── Widget Card Base ─── */
 
-/* Common Effects */
-.glow-effect {
-  text-shadow:
-    0 0 10px rgba(255, 255, 255, 0.3),
-    0 0 20px rgba(255, 255, 255, 0.2);
-}
-
-.glow-filter {
-  filter: url(#outerGlow);
-}
-
-/* Common Widget Base Styles */
-.widget-content {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+.te-widget-card {
   height: 100%;
-  padding: 1rem;
+  width: 100%;
+  background: var(--te-widget-bg);
+  border: 1px solid var(--te-widget-border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--te-widget-shadow);
+  transition: all var(--transition-base);
 }
 
-/* SVG Filters and Effects */
-.ambient-light {
-  animation: pulseAmbient 4s ease-in-out infinite;
+.te-widget-card:hover {
+  box-shadow: var(--shadow-elevated);
 }
 
-/* Common Animations */
-@keyframes pulseAmbient {
-  0% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 0.8;
-  }
-  100% {
-    opacity: 0.6;
-  }
-}
+/* ─── SVG Filters for Widget Glows ─── */
 
-@keyframes glowPulse {
-  0% {
-    filter: url(#outerGlow) brightness(1);
-  }
-  50% {
-    filter: url(#outerGlow) brightness(1.2);
-  }
-  100% {
-    filter: url(#outerGlow) brightness(1);
-  }
-}
-/* Common SVG Definitions */
 .svg-defs {
   position: absolute;
   width: 0;
   height: 0;
   overflow: hidden;
-}
-
-.svg-defs filter {
-  x: -50%;
-  y: -50%;
-  width: 200%;
-  height: 200%;
-}
-
-.svg-defs feGaussianBlur {
-  in: SourceGraphic;
-  stddeviation: 1;
-  result: blur1;
-}
-
-.svg-defs feGaussianBlur:nth-child(2) {
-  in: blur1;
-  stddeviation: 2;
-  result: blur2;
-}
-
-.svg-defs feGaussianBlur:nth-child(3) {
-  in: blur2;
-  stddeviation: 4;
-  result: blur3;
-}
-
-.svg-defs feMerge {
-  in: blur3;
-}
-
-.svg-defs feMergeNode:nth-child(1) {
-  in: blur3;
-}
-
-.svg-defs feMergeNode:nth-child(2) {
-  in: blur2;
-}
-
-.svg-defs feMergeNode:nth-child(3) {
-  in: blur1;
-}
-
-.svg-defs feMergeNode:nth-child(4) {
-  in: SourceGraphic;
 }

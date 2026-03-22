@@ -3,11 +3,11 @@ import ChargerWidgetBase from './ChargerWidgetBase.vue'
 import WidgetContainer from '../shared/WidgetContainer.vue'
 
 const getLedColor = (value: number) => {
-  return value ? '#4CAF50' : 'rgba(255, 255, 255, 0.1)'
+  return value ? 'var(--te-ok)' : 'var(--te-metric-border)'
 }
 
 const getWarningLedColor = (value: number) => {
-  return value ? '#FF5252' : 'rgba(255, 255, 255, 0.1)'
+  return value ? 'var(--te-danger)' : 'var(--te-metric-border)'
 }
 </script>
 
@@ -93,14 +93,14 @@ const getWarningLedColor = (value: number) => {
 
 .total-label {
   font-size: 0.875rem;
-  color: var(--color-text-secondary);
+  color: var(--te-unit);
 }
 
 .total-value {
   font-size: 2.5rem;
-  font-family: var(--font-mono);
+  font-family: var(--te-font-data);
   font-weight: 500;
-  color: var(--color-text-primary);
+  color: var(--te-value);
   line-height: 1;
   margin-top: 0.25rem;
 }
@@ -111,7 +111,7 @@ const getWarningLedColor = (value: number) => {
 }
 
 .charger-detail {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--te-widget-bg);
   border-radius: 0.5rem;
   padding: 0.75rem;
 }
@@ -136,11 +136,11 @@ const getWarningLedColor = (value: number) => {
 
 .metric-label {
   font-size: 0.75rem;
-  color: var(--color-text-secondary);
+  color: var(--te-unit);
 }
 
 .metric-value {
-  font-family: var(--font-mono);
+  font-family: var(--te-font-data);
   font-size: 0.875rem;
 }
 
@@ -149,7 +149,7 @@ const getWarningLedColor = (value: number) => {
   gap: 0.5rem;
   justify-content: center;
   padding-top: 0.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--te-metric-border);
 }
 
 .led {

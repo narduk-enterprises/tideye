@@ -47,13 +47,13 @@ const getStatusColor = (power: number) => {
 
 .power-value {
   font-size: 3.5rem;
-  font-family: var(--font-mono);
+  font-family: var(--te-font-data);
   line-height: 1;
 }
 
 .unit {
   font-size: 1.5rem;
-  color: var(--color-text-tertiary);
+  color: var(--te-label);
   margin-left: 0.5rem;
 }
 </style>

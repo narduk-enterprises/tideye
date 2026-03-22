@@ -50,7 +50,7 @@ const airTemp = computed(() => {
 }
 
 .no-data {
-  color: var(--color-text-tertiary);
+  color: var(--te-label);
   font-size: 0.875rem;
 }
 
@@ -70,7 +70,7 @@ const airTemp = computed(() => {
 
 .temp-label {
   font-size: 0.75rem;
-  color: var(--color-text-secondary);
+  color: var(--te-unit);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -78,7 +78,7 @@ const airTemp = computed(() => {
 .temp-value {
   font-size: 2rem;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: var(--te-value);
   font-family: var(--font-mono, monospace);
 }
 

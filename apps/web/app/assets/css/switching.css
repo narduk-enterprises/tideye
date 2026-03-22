@@ -1,0 +1,121 @@
+.switch-control {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-card);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-default);
+  transition: all var(--transition-base) ease;
+}
+
+.switch-control--on {
+  border-color: var(--color-primary-500);
+  background: color-mix(in srgb, var(--color-primary-500) 5%, var(--color-bg-elevated));
+}
+
+.switch-control--readonly {
+  opacity: 0.7;
+}
+
+.switch-control:not(.switch-control--readonly):hover {
+  border-color: var(--color-primary-400);
+  box-shadow: var(--shadow-card);
+}
+
+.switch-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  background: var(--color-bg-muted);
+  flex-shrink: 0;
+}
+
+.switch-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.switch-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-default);
+}
+
+.switch-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.switch-action {
+  flex-shrink: 0;
+}
+
+.switch-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  max-width: 48rem;
+  margin: 0 auto;
+}
+
+.panel-error {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--color-warning-500) 10%, var(--color-bg-elevated));
+  border: 1px solid var(--color-warning-500);
+}
+
+.switch-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.25rem;
+}
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-default);
+  margin: 0;
+}
+
+.switch-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .switch-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+}
+
+.panel-footer {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-card);
+  background: var(--color-bg-muted);
+}

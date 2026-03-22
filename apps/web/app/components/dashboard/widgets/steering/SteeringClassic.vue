@@ -122,7 +122,7 @@ const getRudderColor = (angle: number): string => {
 
 .rudder-label {
   font-size: 0.875rem;
-  color: var(--color-text-secondary);
+  color: var(--te-unit);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -140,19 +140,19 @@ const getRudderColor = (angle: number): string => {
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--te-widget-bg);
   border-radius: 8px;
 }
 
 .ap-label {
   font-size: 0.875rem;
-  color: var(--color-text-secondary);
+  color: var(--te-unit);
 }
 
 .ap-state {
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--color-text-tertiary);
+  color: var(--te-label);
   text-transform: uppercase;
 }
 
@@ -175,11 +175,11 @@ const getRudderColor = (angle: number): string => {
 }
 
 .detail-label {
-  color: var(--color-text-secondary);
+  color: var(--te-unit);
 }
 
 .detail-value {
-  color: var(--color-text-primary);
+  color: var(--te-value);
   font-weight: 500;
   font-family: var(--font-mono, monospace);
 }
@@ -201,6 +201,6 @@ const getRudderColor = (angle: number): string => {
 }
 
 .alarm-value {
-  color: var(--color-text-primary);
+  color: var(--te-value);
 }
 </style>

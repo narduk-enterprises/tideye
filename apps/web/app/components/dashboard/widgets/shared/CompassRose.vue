@@ -45,8 +45,8 @@ const rotation = computed(() => {
   height: 90px;
   position: relative;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--te-value) 8%, transparent);
+  border: 1px solid var(--te-metric-border);
 }
 
 .cardinal-points {
@@ -59,8 +59,8 @@ const rotation = computed(() => {
   position: absolute;
   font-size: 0.75rem;
   font-weight: 500;
-  font-family: 'SF Mono', monospace;
-  color: rgba(255, 255, 255, 0.3);
+  font-family: var(--te-font-data);
+  color: var(--te-label);
 }
 
 .cardinal.n {
@@ -122,9 +122,9 @@ const rotation = computed(() => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-family: 'SF Mono', monospace;
+  font-family: var(--te-font-data);
   font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--te-unit);
   z-index: 1;
 }
 </style>

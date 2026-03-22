@@ -22,6 +22,7 @@ declare module 'nuxt/schema' {
     indexNowKey: string
     cspScriptSrc: string
     cspConnectSrc: string
+    cspFrameSrc: string
     /** Set at build time for "latest build" checks (e.g. CI or curl script). */
     buildVersion: string
     /** ISO string set at build time. */

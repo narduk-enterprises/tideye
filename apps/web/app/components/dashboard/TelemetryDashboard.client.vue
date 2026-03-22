@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // @ts-nocheck -- Ported from tideye-dashboard
-import Draggable from 'vuedraggable'
+import { useDraggable } from 'vue-draggable-plus'
 import { useToggle, useDebounceFn } from '@vueuse/core'
 import { WIDGET_REGISTRY, DEFAULT_LAYOUT } from '~/config/widgets'
 import { DEFAULT_VIEWS } from '~/config/views'
@@ -8,16 +8,7 @@ import { useWidgetManager } from '~/composables/useWidgetManager'
 import { useViewManager } from '~/composables/useViewManager'
 import { useMobileFeatures } from '~/composables/useMobileFeatures'
 import type { BaseWidget } from '~/types/widgets'
-import { useSignalKStore } from '~/stores/signalk'
-
-// Initialize SignalK connection (client-only)
-const signalKStore = useSignalKStore()
-onMounted(() => {
-  signalKStore.initClient()
-})
-onUnmounted(() => {
-  signalKStore.cleanup()
-})
+// SignalK connection is initialized globally by plugins/signalk.client.ts
 
 // View manager
 const viewManager = useViewManager(WIDGET_REGISTRY, DEFAULT_VIEWS)
@@ -120,6 +111,37 @@ const debouncedSaveLayout = useDebounceFn(() => {
   saveLayout()
   viewManager.saveCurrentView(activeWidgets.value)
 }, 300)
+
+// Drag-and-drop — composable form avoids Options API defineComponent (fixes mounted$ warning)
+const dragContainer = ref<HTMLElement | null>(null)
+const drag = useDraggable(dragContainer, activeWidgets, {
+  immediate: false,
+  animation: 200,
+  ghostClass: 'ghost-widget',
+  dragClass: 'dragging-widget',
+  disabled: true,
+  handle: '.drag-handle',
+  delay: 200,
+  delayOnTouchOnly: true,
+  touchStartThreshold: 5,
+  onEnd: () => debouncedSaveLayout(),
+})
+
+// Initialize draggable when the container DOM element becomes available
+// (.client.vue lifecycle means refs aren't populated in onMounted)
+watch(
+  dragContainer,
+  (el) => {
+    if (el) drag.start()
+  },
+  { once: true },
+)
+
+// Reactively toggle drag based on edit mode
+watch(isEditMode, (editing) => {
+  if (editing) drag.resume()
+  else drag.pause()
+})
 
 const handleViewSelect = (viewId: string) => {
   const widgets = viewManager.loadView(viewId)
@@ -281,47 +303,37 @@ onUnmounted(() => {
     </div>
 
     <div class="dashboard-content">
-      <Draggable
-        v-model="activeWidgets"
-        class="dashboard-grid"
-        item-key="instanceId"
-        :animation="200"
-        ghost-class="ghost-widget"
-        drag-class="dragging-widget"
-        :disabled="!isEditMode"
-        handle=".drag-handle"
-        :delay="mobileFeatures.isMobile.value ? 300 : 200"
-        :delay-on-touch-only="true"
-        :touch-start-threshold="mobileFeatures.isMobile.value ? 10 : 5"
-        @end="debouncedSaveLayout"
-      >
-        <template #item="{ element }">
-          <div
-            class="widget-wrapper"
-            :class="{ 'edit-mode': isEditMode }"
-            :data-widget-name="element.name"
-            @touchstart.prevent="!isEditMode && handleWidgetCycle(element)"
-          >
-            <UButton
-              v-if="isEditMode"
-              icon="i-lucide-x"
-              class="remove-widget"
-              variant="soft"
-              color="error"
-              size="xs"
-              @click.stop="removeWidget(element.instanceId)"
+      <div ref="dragContainer" class="dashboard-grid">
+        <div
+          v-for="element in activeWidgets"
+          :key="element.instanceId"
+          class="widget-wrapper"
+          :class="[
+            { 'edit-mode': isEditMode },
+            `widget-wrapper--${element.tileSize ?? 'standard'}`,
+          ]"
+          :data-widget-name="element.name"
+          @touchstart.prevent="!isEditMode && handleWidgetCycle(element)"
+        >
+          <UButton
+            v-if="isEditMode"
+            icon="i-lucide-x"
+            class="remove-widget"
+            variant="soft"
+            color="error"
+            size="xs"
+            @click.stop="removeWidget(element.instanceId)"
+          />
+          <div v-if="isEditMode" class="drag-handle">⋮⋮</div>
+          <div class="widget-tap-area" @click.stop="!isEditMode && handleWidgetCycle(element)">
+            <component
+              :is="element.component"
+              :current-view="widgetCycleStates[element.instanceId] || 0"
+              :max-states="element.maxStates"
             />
-            <div v-if="isEditMode" class="drag-handle">⋮⋮</div>
-            <div class="widget-tap-area" @click.stop="!isEditMode && handleWidgetCycle(element)">
-              <component
-                :is="element.component"
-                :current-view="widgetCycleStates[element.instanceId] || 0"
-                :max-states="element.maxStates"
-              />
-            </div>
           </div>
-        </template>
-      </Draggable>
+        </div>
+      </div>
     </div>
 
     <!-- Widget Selection Modal -->
@@ -480,9 +492,12 @@ onUnmounted(() => {
 @media (min-width: 768px) {
   .dashboard-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1rem;
-    align-items: start;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+    grid-auto-rows: var(--te-dashboard-row-unit);
+    grid-auto-flow: row dense;
+    gap: 0.75rem;
+    align-items: stretch;
+    align-content: start;
   }
 }
 
@@ -498,6 +513,40 @@ onUnmounted(() => {
   -webkit-user-select: none;
   z-index: 1;
   isolation: isolate;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Shorter tiers: ~8.8 / ~11.5 / ~14.1 rem at default row unit (was ~15 / ~19.5 / ~25 rem) */
+.widget-wrapper--compact {
+  min-height: calc(11 * var(--te-dashboard-row-unit));
+}
+
+.widget-wrapper--standard {
+  min-height: calc(14 * var(--te-dashboard-row-unit));
+}
+
+.widget-wrapper--expanded {
+  min-height: calc(17 * var(--te-dashboard-row-unit));
+}
+
+@media (min-width: 768px) {
+  .widget-wrapper--compact {
+    grid-row: span 11;
+  }
+
+  .widget-wrapper--standard {
+    grid-row: span 14;
+  }
+
+  .widget-wrapper--expanded {
+    grid-row: span 17;
+  }
+}
+
+.widget-wrapper :deep(.te-widget-card) {
+  min-height: 0;
+  flex: 1;
 }
 
 .widget-wrapper.edit-mode {
@@ -577,7 +626,10 @@ onUnmounted(() => {
 
 .widget-tap-area {
   width: 100%;
-  height: 100%;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;

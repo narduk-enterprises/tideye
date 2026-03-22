@@ -96,14 +96,14 @@ const getComparisonColor = (today: number, yesterday: number) => {
 
 .power-value {
   font-size: 3rem;
-  font-family: var(--font-mono);
-  color: var(--color-text-primary);
+  font-family: var(--te-font-data);
+  color: var(--te-value);
   line-height: 1;
 }
 
 .power-label {
   font-size: 0.75rem;
-  color: var(--color-text-tertiary);
+  color: var(--te-label);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-top: 0.5rem;
@@ -114,7 +114,7 @@ const getComparisonColor = (today: number, yesterday: number) => {
   flex-direction: column;
   gap: 0.75rem;
   padding: 1rem;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--te-widget-bg);
   border-radius: 8px;
   position: relative;
 }
@@ -127,18 +127,18 @@ const getComparisonColor = (today: number, yesterday: number) => {
 
 .day-label {
   font-size: 0.875rem;
-  color: var(--color-text-secondary);
+  color: var(--te-unit);
 }
 
 .yield-value {
-  font-family: var(--font-mono);
+  font-family: var(--te-font-data);
   font-size: 1.25rem;
-  color: var(--color-text-primary);
+  color: var(--te-value);
 }
 
 .unit {
   font-size: 0.875rem;
-  color: var(--color-text-tertiary);
+  color: var(--te-label);
   margin-left: 0.25rem;
 }
 
@@ -159,22 +159,22 @@ const getComparisonColor = (today: number, yesterday: number) => {
 
 .panel-item {
   padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--te-widget-bg);
   border-radius: 8px;
   text-align: center;
 }
 
 .panel-name {
   font-size: 0.75rem;
-  color: var(--color-text-tertiary);
+  color: var(--te-label);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 0.25rem;
 }
 
 .panel-yield {
-  font-family: var(--font-mono);
+  font-family: var(--te-font-data);
   font-size: 1rem;
-  color: var(--color-text-primary);
+  color: var(--te-value);
 }
 </style>

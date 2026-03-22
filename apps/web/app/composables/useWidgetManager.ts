@@ -1,4 +1,5 @@
 // @ts-nocheck -- Ported from tideye-dashboard, to be migrated incrementally
+import { useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import type { BaseWidget, Widget } from '~/types/widgets'
 

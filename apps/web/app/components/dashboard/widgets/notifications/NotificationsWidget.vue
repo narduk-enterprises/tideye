@@ -91,8 +91,10 @@ const getStateIcon = (state: string): string => {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  max-height: 400px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .no-notifications {
@@ -103,7 +105,7 @@ const getStateIcon = (state: string): string => {
 }
 
 .no-data-text {
-  color: var(--color-text-tertiary);
+  color: var(--te-label);
   font-size: 0.875rem;
 }
 
@@ -114,7 +116,7 @@ const getStateIcon = (state: string): string => {
 }
 
 .notification-item {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--te-widget-bg);
   border: 1px solid var(--color-border);
   border-left: 4px solid;
   border-radius: 8px;
@@ -143,7 +145,7 @@ const getStateIcon = (state: string): string => {
 
 .notification-message {
   font-size: 0.875rem;
-  color: var(--color-text-primary);
+  color: var(--te-value);
   line-height: 1.4;
 }
 
@@ -151,7 +153,7 @@ const getStateIcon = (state: string): string => {
   display: flex;
   gap: 0.5rem;
   font-size: 0.75rem;
-  color: var(--color-text-tertiary);
+  color: var(--te-label);
 }
 
 .methods-label {
