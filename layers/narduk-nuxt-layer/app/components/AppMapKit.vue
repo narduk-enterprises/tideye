@@ -1,4 +1,3 @@
-<!-- eslint-disable narduk/no-fetch-in-component -- $fetch is used to load Texas outline GeoJSON for mask overlay -->
 <script lang="ts">
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mapkit is a global injected by Apple's CDN script, no type definitions available
 declare const mapkit: any
@@ -10,10 +9,10 @@ declare const mapkit: any
  *
  * Supports two rendering modes (can be combined):
  *   1. Pin annotations — pass `items` + `createPinElement`
- *   2. GeoJSON polygon overlays — pass `geojson` + optional `overlayStyleFn`
+ *   2. GeoJSON polygon/line overlays — pass `geojson` + optional `overlayStyleFn`
  *
  * Handles MapKit loading, map initialization, bounding region calculation,
- * pin annotations with selection, polygon overlays, zoom behavior, dark mode
+ * pin annotations with selection, GeoJSON overlays, zoom behavior, dark mode
  * sync, and cleanup.
  */
 
@@ -61,9 +60,9 @@ const props = withDefaults(
       item: T,
       isSelected: boolean,
     ) => { element: HTMLElement; cleanup?: () => void }
-    /** GeoJSON FeatureCollection with Polygon/MultiPolygon features. */
+    /** GeoJSON FeatureCollection with Polygon/MultiPolygon/LineString features. */
     geojson?: GeoJSONFeatureCollection | null
-    /** Custom style function for each GeoJSON overlay polygon. */
+    /** Custom style function for each GeoJSON overlay polygon/line feature. */
     overlayStyleFn?: (properties: GeoJSONFeatureProperties) => OverlayStyle
     /** Lightweight circle overlays for rendering large point clouds. */
     circles?: Array<{ lat: number; lng: number; radius: number; color: string; opacity?: number }>
@@ -94,11 +93,9 @@ const props = withDefaults(
     isZoomEnabled?: boolean
     /** When false, disables map rotation interaction. */
     isRotationEnabled?: boolean
-    /** When true, draws a semi-transparent overlay outside the Texas border. */
-    texasMask?: boolean
     /** When true, keeps the current map region when items change instead of auto-zooming to fit. */
     preserveRegion?: boolean
-    /** When true, selection changes only refresh pins; parent must call setRegion / zoomToFit (avoids tight zoom-to-pin). */
+    /** When true, selection changes only refresh pins; parent controls camera updates. */
     suppressSelectionZoom?: boolean
     /** When false, hides all point-of-interest labels (road names, city names, etc). */
     showsPointsOfInterest?: boolean
@@ -125,7 +122,6 @@ const props = withDefaults(
     isScrollEnabled: true,
     isZoomEnabled: true,
     isRotationEnabled: false,
-    texasMask: false,
     preserveRegion: false,
     suppressSelectionZoom: false,
     showsPointsOfInterest: true,
@@ -142,11 +138,7 @@ const emit = defineEmits<{
   'region-change': [
     span: { latDelta: number; lngDelta: number; centerLat: number; centerLng: number },
   ]
-  /**
-   * Emitted once after `mapkit.Map` is created and initial overlays/annotations are attached.
-   * Callers using `setRegion` / `zoomToFit` via template ref should wait for this — those
-   * methods no-op until the internal map instance exists.
-   */
+  /** Emitted once the internal `mapkit.Map` instance is ready for imperative camera control. */
   'map-ready': []
 }>()
 
@@ -159,184 +151,6 @@ const pinCleanups: Array<() => void> = []
 let map: InstanceType<typeof mapkit.Map> | null = null
 let overviewRegion: InstanceType<typeof mapkit.CoordinateRegion> | null = null
 const overlayFeatureMap = new WeakMap<object, GeoJSONFeature>()
-
-// ── Texas mask ───────────────────────────────────────────────
-const texasMaskOverlays: InstanceType<typeof mapkit.PolygonOverlay>[] = []
-let _texasCoords: Array<[number, number]> | null = null
-
-async function fetchTexasCoords(): Promise<Array<[number, number]>> {
-  if (_texasCoords) return _texasCoords
-  // eslint-disable-next-line narduk/no-fetch-in-component, narduk/no-raw-fetch -- client-only GeoJSON load inside async fn, not setup-level
-  const data = await $fetch<{ geometry: { coordinates: Array<Array<[number, number]>> } }>(
-    '/api/geo/texas-outline',
-  )
-  _texasCoords = data.geometry.coordinates[0] ?? []
-  return _texasCoords!
-}
-
-function getTexasMaskColor(): string {
-  let isDark = false
-  if (import.meta.client) {
-    isDark = document.documentElement.classList.contains('dark')
-  }
-  // eslint-disable-next-line narduk/no-inline-hex -- MapKit overlay style requires raw hex; no Tailwind utility available in JS context
-  return isDark ? '#0a0a0a' : '#ffffff'
-}
-
-/**
- * Scale a ring of MapKit Coordinates from a centroid by the given factor.
- */
-function scaleRing(
-  ring: InstanceType<typeof mapkit.Coordinate>[],
-  scale: number,
-  cLat: number,
-  cLng: number,
-): InstanceType<typeof mapkit.Coordinate>[] {
-  return ring.map((c: InstanceType<typeof mapkit.Coordinate>) => {
-    const lat = cLat + (c.latitude - cLat) * scale
-    const lng = cLng + (c.longitude - cLng) * scale
-    return new mapkit.Coordinate(lat, lng)
-  })
-}
-
-/**
- * Douglas-Peucker polygon simplification.
- * Removes vertices closer than `tolerance` degrees to the line
- * between their neighbors — smooths jagged edges for outer layers.
- */
-function simplifyRing(
-  ring: InstanceType<typeof mapkit.Coordinate>[],
-  tolerance: number,
-): InstanceType<typeof mapkit.Coordinate>[] {
-  if (ring.length <= 4) return ring
-
-  function perpDist(
-    p: InstanceType<typeof mapkit.Coordinate>,
-    a: InstanceType<typeof mapkit.Coordinate>,
-    b: InstanceType<typeof mapkit.Coordinate>,
-  ): number {
-    const dx = b.longitude - a.longitude
-    const dy = b.latitude - a.latitude
-    const lenSq = dx * dx + dy * dy
-    if (lenSq === 0)
-      return Math.sqrt((p.longitude - a.longitude) ** 2 + (p.latitude - a.latitude) ** 2)
-    const t = Math.max(
-      0,
-      Math.min(1, ((p.longitude - a.longitude) * dx + (p.latitude - a.latitude) * dy) / lenSq),
-    )
-    const projX = a.longitude + t * dx
-    const projY = a.latitude + t * dy
-    return Math.sqrt((p.longitude - projX) ** 2 + (p.latitude - projY) ** 2)
-  }
-
-  function dp(
-    points: InstanceType<typeof mapkit.Coordinate>[],
-    tol: number,
-  ): InstanceType<typeof mapkit.Coordinate>[] {
-    if (points.length <= 2) return points
-    let maxDist = 0
-    let maxIdx = 0
-    const first = points[0]
-    const last = points.at(-1)
-
-    for (let i = 1; i < points.length - 1; i++) {
-      const d = perpDist(points[i]!, first, last)
-      if (d > maxDist) {
-        maxDist = d
-        maxIdx = i
-      }
-    }
-
-    if (maxDist > tol) {
-      const left = dp(points.slice(0, maxIdx + 1), tol)
-      const right = dp(points.slice(maxIdx), tol)
-      return [...left.slice(0, -1), ...right]
-    }
-    return [first, last]
-  }
-
-  const result = dp(ring, tolerance)
-  if (result.length > 2 && result[0] !== result.at(-1)) {
-    result.push(result[0])
-  }
-  return result
-}
-
-async function addTexasMask() {
-  if (!map || !props.texasMask) return
-  removeTexasMask()
-
-  const coords = await fetchTexasCoords()
-  if (!coords?.length) return
-
-  // Outer rectangle covering the world
-  const outerRing = [
-    new mapkit.Coordinate(5, -180),
-    new mapkit.Coordinate(5, 179.99),
-    new mapkit.Coordinate(57, 179.99),
-    new mapkit.Coordinate(57, -180),
-  ]
-
-  // Base Texas ring from GeoJSON (CCW winding = MapKit hole)
-  const baseTexasRing = coords.map(
-    ([lng, lat]: [number, number]) => new mapkit.Coordinate(lat, lng),
-  )
-
-  // Approximate centroid of Texas for scaling
-  const cLat = 31.0
-  const cLng = -99.5
-
-  // 5 layers: centroid scaling + progressive simplification.
-  // Fewer layers = no multiplicative darkening.
-  // Smaller scale range = less distortion at panhandle/Rio Grande.
-  // Outer layers get simplified to smooth jagged edges.
-  const layers = [
-    { scale: 1.0, simplify: 0, opacity: 0.18 },
-    { scale: 1.03, simplify: 0, opacity: 0.3 },
-    { scale: 1.06, simplify: 0.02, opacity: 0.5 },
-    { scale: 1.1, simplify: 0.05, opacity: 0.7 },
-    { scale: 1.15, simplify: 0.1, opacity: 0.92 },
-  ]
-
-  const fillColor = getTexasMaskColor()
-
-  for (const layer of layers) {
-    let hole =
-      layer.scale === 1.0 ? baseTexasRing : scaleRing(baseTexasRing, layer.scale, cLat, cLng)
-
-    if (layer.simplify > 0) {
-      hole = simplifyRing(hole, layer.simplify)
-    }
-
-    const style = new mapkit.Style({
-      fillColor,
-      fillOpacity: layer.opacity,
-      strokeOpacity: 0,
-      lineWidth: 0,
-    })
-
-    const overlay = new mapkit.PolygonOverlay([outerRing, hole], { style })
-    overlay.enabled = false
-    map.addOverlay(overlay)
-    texasMaskOverlays.push(overlay)
-  }
-}
-
-function removeTexasMask() {
-  if (!map) return
-  for (const overlay of texasMaskOverlays) {
-    map.removeOverlay(overlay)
-  }
-  texasMaskOverlays.length = 0
-}
-
-function updateTexasMaskStyle() {
-  if (!texasMaskOverlays.length) return
-  const fillColor = getTexasMaskColor()
-  for (const overlay of texasMaskOverlays) {
-    overlay.style.fillColor = fillColor
-  }
-}
 
 // ── Bounding region ──────────────────────────────────────────
 
@@ -444,6 +258,18 @@ function defaultOverlayStyle(): OverlayStyle {
   }
 }
 
+function defaultLineOverlayStyle(): OverlayStyle {
+  return {
+    // eslint-disable-next-line narduk/no-inline-hex -- MapKit Style API requires raw hex values; Tailwind utilities cannot be used in JS objects
+    strokeColor: '#0284c7',
+    strokeOpacity: 0.92,
+    // eslint-disable-next-line narduk/no-inline-hex -- MapKit Style API requires raw hex values; Tailwind utilities cannot be used in JS objects
+    fillColor: '#000000',
+    fillOpacity: 0,
+    lineWidth: 3,
+  }
+}
+
 function buildPolygonRings(
   geometry: GeoJSONGeometry,
 ): Array<InstanceType<typeof mapkit.Coordinate>[]> {
@@ -453,7 +279,7 @@ function buildPolygonRings(
   const rings: Array<InstanceType<typeof mapkit.Coordinate>[]> = []
 
   if (geometry.type === 'LineString') {
-    return []
+    return rings
   }
 
   if (geometry.type === 'Polygon') {
@@ -483,23 +309,13 @@ function buildLineStringCoordinates(
   geometry: GeoJSONGeometry,
 ): InstanceType<typeof mapkit.Coordinate>[] {
   if (geometry.type !== 'LineString') return []
+
   const coords = geometry.coordinates
   if (!Array.isArray(coords)) return []
+
   return coords
     .filter((pt: unknown) => Array.isArray(pt) && (pt as number[]).length >= 2)
     .map((pt: unknown) => new mapkit.Coordinate((pt as number[])[1], (pt as number[])[0]))
-}
-
-function defaultLineOverlayStyle(): OverlayStyle {
-  return {
-    // eslint-disable-next-line narduk/no-inline-hex -- MapKit Style API requires raw hex
-    strokeColor: '#0284c7',
-    strokeOpacity: 0.92,
-    // eslint-disable-next-line narduk/no-inline-hex -- MapKit Style API requires raw hex
-    fillColor: '#000000',
-    fillOpacity: 0,
-    lineWidth: 3,
-  }
 }
 
 // ── Map initialization ───────────────────────────────────────
@@ -561,8 +377,9 @@ function initMap() {
     ? mapkit.PointOfInterestFilter?.excludingAllCategories
     : null
 
+  // Keep constructor options narrow. Some constructor-time options route through
+  // MapKit rotation handling on clients that do not support rotation.
   const mapOpts: Record<string, unknown> = {
-    center: overviewRegion.center,
     region: overviewRegion,
     showsCompass: mapkit.FeatureVisibility.Hidden,
     showsMapTypeControl: false,
@@ -602,6 +419,7 @@ function initMap() {
     map.pointOfInterestFilter = excludeAllPoi
   }
 
+  // Only enable rotation when the client actually supports it.
   if (props.isRotationEnabled && map.isRotationAvailable) {
     map.isRotationEnabled = true
   }
@@ -642,7 +460,6 @@ function initMap() {
   addCenterLabel()
   addCircles()
   resizeCirclesToRegion() // Apply dynamic radius for the initial zoom level
-  addTexasMask()
 
   // Emit region changes for zoom-responsive behavior + dynamic circle radius
   map.addEventListener('region-change-end', () => {
@@ -676,7 +493,7 @@ function addAnnotations() {
   const annotations = props.items.map((item) => {
     const coord = new mapkit.Coordinate(item.lat, item.lng)
     const opts: Record<string, unknown> = {
-      anchorOffset: new DOMPoint(0, 0),
+      anchorOffset: new DOMPoint(0, -6),
       calloutEnabled: false,
       size: props.annotationSize,
       data: { id: item.id },
@@ -692,7 +509,7 @@ function addAnnotations() {
 
         const wrapper = import.meta.client ? document.createElement('div') : ({} as HTMLElement)
         wrapper.setAttribute('data-map-pin', '')
-        wrapper.style.cssText = `cursor: pointer; width: ${props.annotationSize.width}px; height: ${props.annotationSize.height}px; display: flex; align-items: center; justify-content: center;`
+        wrapper.style.cursor = 'pointer'
         wrapper.appendChild(element)
         wrapper.addEventListener('click', (e) => {
           e.stopPropagation()
@@ -722,12 +539,8 @@ function addOverlays() {
   if (!map || !props.geojson?.features?.length) return
 
   for (const feature of props.geojson.features) {
-    const geom = feature.geometry
-
-    if (geom.type === 'LineString') {
-      const lineCoords = buildLineStringCoordinates(geom)
-      if (lineCoords.length < 2) continue
-
+    const lineCoordinates = buildLineStringCoordinates(feature.geometry)
+    if (lineCoordinates.length >= 2) {
       const styleCfg = props.overlayStyleFn
         ? props.overlayStyleFn(feature.properties)
         : defaultLineOverlayStyle()
@@ -740,7 +553,7 @@ function addOverlays() {
         lineWidth: styleCfg.lineWidth ?? 3,
       })
 
-      const overlay = new mapkit.PolylineOverlay(lineCoords, { style })
+      const overlay = new mapkit.PolylineOverlay(lineCoordinates, { style })
       overlay.enabled = true
       overlayFeatureMap.set(overlay, feature)
       map.addOverlay(overlay)
@@ -901,14 +714,13 @@ watch(
   () => props.items,
   () => {
     if (!map) return
-    // When preserving region (e.g. live vessel tracking), only update annotations
-    // without resetting selection or re-zooming, so the map stays put during HMR/edits
     if (props.preserveRegion) {
       clearPinCleanups()
       map.removeAnnotations(map.annotations)
       addAnnotations()
       return
     }
+
     selectedId.value = null
     clearPinCleanups()
     map.removeAnnotations(map.annotations)
@@ -949,7 +761,6 @@ watch(
     if (map) {
       map.colorScheme =
         mode === 'dark' ? mapkit.Map.ColorSchemes.Dark : mapkit.Map.ColorSchemes.Light
-      updateTexasMaskStyle()
     }
   },
 )
@@ -964,7 +775,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   clearPinCleanups()
-  removeTexasMask()
   if (map) {
     map.destroy()
     map = null
@@ -981,17 +791,18 @@ function setRegion(center: { lat: number; lng: number }, span?: { lat: number; l
   const s = new mapkit.CoordinateSpan(span?.lat ?? 0.01, span?.lng ?? 0.01)
   map.setRegionAnimated(new mapkit.CoordinateRegion(coord, s), true)
 }
-/** Fit the visible region to current items / geojson / circles (see {@link computeBoundingRegion}). */
 function zoomToFit(zoomOutLevels = 0) {
   if (!map) return
   const region = computeBoundingRegion()
   if (!region) return
+
   let latDelta = region.span.latitudeDelta
   let lngDelta = region.span.longitudeDelta
   for (let i = 0; i < zoomOutLevels; i++) {
     latDelta *= 2
     lngDelta *= 2
   }
+
   map.setRegionAnimated(
     new mapkit.CoordinateRegion(region.center, new mapkit.CoordinateSpan(latDelta, lngDelta)),
     true,

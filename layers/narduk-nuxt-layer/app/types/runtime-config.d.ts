@@ -10,6 +10,7 @@ declare module 'nuxt/schema' {
     posthogApiKey: string
     gaPropertyId: string
     posthogProjectId: string
+    ownerTagSecret: string
   }
 
   interface PublicRuntimeConfig {
@@ -23,6 +24,7 @@ declare module 'nuxt/schema' {
     cspScriptSrc: string
     cspConnectSrc: string
     cspFrameSrc: string
+    cspWorkerSrc: string
     /** Set at build time for "latest build" checks (e.g. CI or curl script). */
     buildVersion: string
     /** ISO string set at build time. */

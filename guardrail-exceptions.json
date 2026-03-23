@@ -1,0 +1,172 @@
+[
+  {
+    "file": "apps/web/app/components/dashboard/TelemetryDashboard.client.vue",
+    "line": 2,
+    "kind": "ts-nocheck",
+    "rule": null,
+    "reason": "This dashboard subtree is still being migrated from the legacy codebase.",
+    "owner": "codex",
+    "createdAt": "2026-03-23",
+    "expiresAt": "2026-06-23"
+  },
+  {
+    "file": "apps/web/app/components/dashboard/ViewSwitcher.vue",
+    "line": 2,
+    "kind": "ts-nocheck",
+    "rule": null,
+    "reason": "This dashboard subtree is still being migrated from the legacy codebase.",
+    "owner": "codex",
+    "createdAt": "2026-03-23",
+    "expiresAt": "2026-06-23"
+  },
+  {
+    "file": "apps/web/app/components/dashboard/widgets/charger/ChargerWidgetBase.vue",
+    "line": 2,
+    "kind": "ts-nocheck",
+    "rule": null,
+    "reason": "This dashboard subtree is still being migrated from the legacy codebase.",
+    "owner": "codex",
+    "createdAt": "2026-03-23",
+    "expiresAt": "2026-06-23"
+  },
+  {
+    "file": "apps/web/app/components/dashboard/widgets/inverter/InverterWidgetBase.vue",
+    "line": 2,
+    "kind": "ts-nocheck",
+    "rule": null,
+    "reason": "This dashboard subtree is still being migrated from the legacy codebase.",
+    "owner": "codex",
+    "createdAt": "2026-03-23",
+    "expiresAt": "2026-06-23"
+  },
+  {
+    "file": "apps/web/app/components/dashboard/widgets/notifications/NotificationsWidget.vue",
+    "line": 2,
+    "kind": "ts-nocheck",
+    "rule": null,
+    "reason": "This dashboard subtree is still being migrated from the legacy codebase.",
+    "owner": "codex",
+    "createdAt": "2026-03-23",
+    "expiresAt": "2026-06-23"
+  },
+  {
+    "file": "apps/web/app/components/dashboard/widgets/propulsion/PropulsionClassic.vue",
+    "line": 2,
+    "kind": "ts-nocheck",
+    "rule": null,
+    "reason": "This dashboard subtree is still being migrated from the legacy codebase.",
+    "owner": "codex",
+    "createdAt": "2026-03-23",
+    "expiresAt": "2026-06-23"
+  },
+  {
+    "file": "apps/web/app/components/dashboard/widgets/shared/CardinalDirection.vue",
+    "line": 2,
+    "kind": "ts-nocheck",
+    "rule": null,
+    "reason": "This dashboard subtree is still being migrated from the legacy codebase.",
+    "owner": "codex",
+    "createdAt": "2026-03-23",
+    "expiresAt": "2026-06-23"
+  },
+  {
+    "file": "apps/web/app/composables/useTouchWidget.ts",
+    "line": 1,
+    "kind": "ts-nocheck",
+    "rule": null,
+    "reason": "This composable is a direct migration from the legacy dashboard and will be typed incrementally.",
+    "owner": "codex",
+    "createdAt": "2026-03-23",
+    "expiresAt": "2026-06-23"
+  },
+  {
+    "file": "apps/web/app/composables/useViewManager.ts",
+    "line": 1,
+    "kind": "ts-nocheck",
+    "rule": null,
+    "reason": "This composable is a direct migration from the legacy dashboard and will be typed incrementally.",
+    "owner": "codex",
+    "createdAt": "2026-03-23",
+    "expiresAt": "2026-06-23"
+  },
+  {
+    "file": "apps/web/app/composables/useWidgetManager.ts",
+    "line": 1,
+    "kind": "ts-nocheck",
+    "rule": null,
+    "reason": "This composable is a direct migration from the legacy dashboard and will be typed incrementally.",
+    "owner": "codex",
+    "createdAt": "2026-03-23",
+    "expiresAt": "2026-06-23"
+  },
+  {
+    "file": "apps/web/app/types/signalk/battery.ts",
+    "line": 1,
+    "kind": "ts-nocheck",
+    "rule": null,
+    "reason": "These SignalK type stubs are being migrated incrementally from the legacy dashboard.",
+    "owner": "codex",
+    "createdAt": "2026-03-23",
+    "expiresAt": "2026-06-23"
+  },
+  {
+    "file": "apps/web/app/types/signalk/charger.ts",
+    "line": 1,
+    "kind": "ts-nocheck",
+    "rule": null,
+    "reason": "These SignalK type stubs are being migrated incrementally from the legacy dashboard.",
+    "owner": "codex",
+    "createdAt": "2026-03-23",
+    "expiresAt": "2026-06-23"
+  },
+  {
+    "file": "apps/web/app/types/signalk/inverter.ts",
+    "line": 1,
+    "kind": "ts-nocheck",
+    "rule": null,
+    "reason": "These SignalK type stubs are being migrated incrementally from the legacy dashboard.",
+    "owner": "codex",
+    "createdAt": "2026-03-23",
+    "expiresAt": "2026-06-23"
+  },
+  {
+    "file": "apps/web/app/types/signalk/model.ts",
+    "line": 1,
+    "kind": "ts-nocheck",
+    "rule": null,
+    "reason": "These SignalK type stubs are being migrated incrementally from the legacy dashboard.",
+    "owner": "codex",
+    "createdAt": "2026-03-23",
+    "expiresAt": "2026-06-23"
+  },
+  {
+    "file": "apps/web/app/types/signalk/solar.ts",
+    "line": 1,
+    "kind": "ts-nocheck",
+    "rule": null,
+    "reason": "These SignalK type stubs are being migrated incrementally from the legacy dashboard.",
+    "owner": "codex",
+    "createdAt": "2026-03-23",
+    "expiresAt": "2026-06-23"
+  },
+  {
+    "file": "apps/web/app/types/signalk/vessel.ts",
+    "line": 1,
+    "kind": "ts-nocheck",
+    "rule": null,
+    "reason": "These SignalK type stubs are being migrated incrementally from the legacy dashboard.",
+    "owner": "codex",
+    "createdAt": "2026-03-23",
+    "expiresAt": "2026-06-23"
+  },
+  {
+    "file": "apps/web/app/utils/unitConversions.ts",
+    "line": 1,
+    "kind": "ts-nocheck",
+    "rule": null,
+    "reason": "This utility is still migrating off the legacy dashboard typing surface.",
+    "owner": "codex",
+    "createdAt": "2026-03-23",
+    "expiresAt": "2026-06-23"
+  }
+]
