@@ -7,7 +7,7 @@
     "reason": "This dashboard subtree is still being migrated from the legacy codebase.",
     "owner": "codex",
     "createdAt": "2026-03-23",
-    "expiresAt": "2026-06-23"
+    "expiresAt": "2026-04-22"
   },
   {
     "file": "apps/web/app/components/dashboard/ViewSwitcher.vue",
@@ -17,7 +17,7 @@
     "reason": "This dashboard subtree is still being migrated from the legacy codebase.",
     "owner": "codex",
     "createdAt": "2026-03-23",
-    "expiresAt": "2026-06-23"
+    "expiresAt": "2026-04-22"
   },
   {
     "file": "apps/web/app/components/dashboard/widgets/charger/ChargerWidgetBase.vue",
@@ -27,7 +27,7 @@
     "reason": "This dashboard subtree is still being migrated from the legacy codebase.",
     "owner": "codex",
     "createdAt": "2026-03-23",
-    "expiresAt": "2026-06-23"
+    "expiresAt": "2026-04-22"
   },
   {
     "file": "apps/web/app/components/dashboard/widgets/inverter/InverterWidgetBase.vue",
@@ -37,7 +37,7 @@
     "reason": "This dashboard subtree is still being migrated from the legacy codebase.",
     "owner": "codex",
     "createdAt": "2026-03-23",
-    "expiresAt": "2026-06-23"
+    "expiresAt": "2026-04-22"
   },
   {
     "file": "apps/web/app/components/dashboard/widgets/notifications/NotificationsWidget.vue",
@@ -47,7 +47,7 @@
     "reason": "This dashboard subtree is still being migrated from the legacy codebase.",
     "owner": "codex",
     "createdAt": "2026-03-23",
-    "expiresAt": "2026-06-23"
+    "expiresAt": "2026-04-22"
   },
   {
     "file": "apps/web/app/components/dashboard/widgets/propulsion/PropulsionClassic.vue",
@@ -57,7 +57,7 @@
     "reason": "This dashboard subtree is still being migrated from the legacy codebase.",
     "owner": "codex",
     "createdAt": "2026-03-23",
-    "expiresAt": "2026-06-23"
+    "expiresAt": "2026-04-22"
   },
   {
     "file": "apps/web/app/components/dashboard/widgets/shared/CardinalDirection.vue",
@@ -67,7 +67,7 @@
     "reason": "This dashboard subtree is still being migrated from the legacy codebase.",
     "owner": "codex",
     "createdAt": "2026-03-23",
-    "expiresAt": "2026-06-23"
+    "expiresAt": "2026-04-22"
   },
   {
     "file": "apps/web/app/composables/useTouchWidget.ts",
@@ -77,7 +77,7 @@
     "reason": "This composable is a direct migration from the legacy dashboard and will be typed incrementally.",
     "owner": "codex",
     "createdAt": "2026-03-23",
-    "expiresAt": "2026-06-23"
+    "expiresAt": "2026-04-22"
   },
   {
     "file": "apps/web/app/composables/useViewManager.ts",
@@ -87,7 +87,7 @@
     "reason": "This composable is a direct migration from the legacy dashboard and will be typed incrementally.",
     "owner": "codex",
     "createdAt": "2026-03-23",
-    "expiresAt": "2026-06-23"
+    "expiresAt": "2026-04-22"
   },
   {
     "file": "apps/web/app/composables/useWidgetManager.ts",
@@ -97,7 +97,7 @@
     "reason": "This composable is a direct migration from the legacy dashboard and will be typed incrementally.",
     "owner": "codex",
     "createdAt": "2026-03-23",
-    "expiresAt": "2026-06-23"
+    "expiresAt": "2026-04-22"
   },
   {
     "file": "apps/web/app/types/signalk/battery.ts",
@@ -107,7 +107,7 @@
     "reason": "These SignalK type stubs are being migrated incrementally from the legacy dashboard.",
     "owner": "codex",
     "createdAt": "2026-03-23",
-    "expiresAt": "2026-06-23"
+    "expiresAt": "2026-04-22"
   },
   {
     "file": "apps/web/app/types/signalk/charger.ts",
@@ -117,7 +117,7 @@
     "reason": "These SignalK type stubs are being migrated incrementally from the legacy dashboard.",
     "owner": "codex",
     "createdAt": "2026-03-23",
-    "expiresAt": "2026-06-23"
+    "expiresAt": "2026-04-22"
   },
   {
     "file": "apps/web/app/types/signalk/inverter.ts",
@@ -127,7 +127,7 @@
     "reason": "These SignalK type stubs are being migrated incrementally from the legacy dashboard.",
     "owner": "codex",
     "createdAt": "2026-03-23",
-    "expiresAt": "2026-06-23"
+    "expiresAt": "2026-04-22"
   },
   {
     "file": "apps/web/app/types/signalk/model.ts",
@@ -137,7 +137,7 @@
     "reason": "These SignalK type stubs are being migrated incrementally from the legacy dashboard.",
     "owner": "codex",
     "createdAt": "2026-03-23",
-    "expiresAt": "2026-06-23"
+    "expiresAt": "2026-04-22"
   },
   {
     "file": "apps/web/app/types/signalk/solar.ts",
@@ -147,7 +147,7 @@
     "reason": "These SignalK type stubs are being migrated incrementally from the legacy dashboard.",
     "owner": "codex",
     "createdAt": "2026-03-23",
-    "expiresAt": "2026-06-23"
+    "expiresAt": "2026-04-22"
   },
   {
     "file": "apps/web/app/types/signalk/vessel.ts",
@@ -157,7 +157,7 @@
     "reason": "These SignalK type stubs are being migrated incrementally from the legacy dashboard.",
     "owner": "codex",
     "createdAt": "2026-03-23",
-    "expiresAt": "2026-06-23"
+    "expiresAt": "2026-04-22"
   },
   {
     "file": "apps/web/app/utils/unitConversions.ts",
@@ -167,6 +167,16 @@
     "reason": "This utility is still migrating off the legacy dashboard typing surface.",
     "owner": "codex",
     "createdAt": "2026-03-23",
-    "expiresAt": "2026-06-23"
+    "expiresAt": "2026-04-22"
+  },
+  {
+    "file": "layers/narduk-nuxt-layer/app/composables/useFormat.ts",
+    "line": 1,
+    "kind": "eslint-disable",
+    "rule": "narduk/require-use-prefix-for-composables",
+    "reason": "The file intentionally exports pure format helpers that are not reactive composables.",
+    "owner": "template",
+    "createdAt": "2026-03-23",
+    "expiresAt": "2026-06-30"
   }
 ]

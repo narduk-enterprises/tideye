@@ -28,7 +28,7 @@
     "db:verify": "node node_modules/@narduk-enterprises/narduk-nuxt-template-layer/testing/verify-local-db.mjs ."
   },
   "dependencies": {
-    "@narduk-enterprises/eslint-config": "^1.0.14",
+    "@narduk-enterprises/eslint-config": "^1.0.17",
     "@narduk-enterprises/narduk-nuxt-template-layer": "workspace:*",
     "@pinia/nuxt": "^0.11.3",
     "@signalk/client": "*",
