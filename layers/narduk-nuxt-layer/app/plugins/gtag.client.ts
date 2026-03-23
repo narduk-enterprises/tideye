@@ -35,6 +35,7 @@ export default defineNuxtPlugin(() => {
 
   // Must push the real `arguments` object — a rest-parameter Array is not replayed
   // the same way by gtag.js. Outer type is variadic so call sites typecheck.
+   
   const gtag: (...args: unknown[]) => void = function () {
     window.dataLayer.push(arguments as unknown as IArguments)
   }
