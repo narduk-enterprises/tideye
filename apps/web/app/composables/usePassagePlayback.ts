@@ -477,7 +477,7 @@ export function usePassagePlaybackController(
   bundle: Ref<PassagePlaybackBundle | null | undefined>,
 ) {
   const timeMode = ref<PlaybackTimeMode>('local')
-  const cameraMode = ref<PlaybackCameraMode>('follow')
+  const cameraMode = ref<PlaybackCameraMode>('fit')
   const trafficMode = ref<PlaybackTrafficMode>('closest')
   const speedId = ref('fit-60s')
   const isPlaying = ref(false)
@@ -831,7 +831,7 @@ export function usePassagePlaybackController(
       lastRafTime = 0
       lastCommitTime = 0
       playheadMs.value = self[0]?.ms ?? 0
-      cameraMode.value = 'follow'
+      cameraMode.value = 'fit'
     },
     { immediate: true },
   )

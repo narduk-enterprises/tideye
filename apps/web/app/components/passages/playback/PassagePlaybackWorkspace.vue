@@ -10,7 +10,6 @@ import {
 import { usePassageFormat } from '~/composables/usePassageFormat'
 import type { PassageDto, PassagePlacesResponse } from '~/types/passage'
 import PassagePlaybackMap from '~/components/passages/playback/PassagePlaybackMap.client.vue'
-import PassagePlaybackRouteOverview from '~/components/passages/playback/PassagePlaybackRouteOverview.client.vue'
 import PassagePlaybackTimeline from '~/components/passages/playback/PassagePlaybackTimeline.vue'
 
 const props = defineProps<{
@@ -79,7 +78,7 @@ const mapHudCards = computed(() => {
 </script>
 
 <template>
-  <div class="min-h-0">
+  <div class="flex h-full min-h-0 flex-col">
     <div
       v-if="!passageId"
       class="flex h-full min-h-[24rem] items-center justify-center rounded-[2rem] border border-dashed border-slate-300 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(239,248,251,0.92))] px-6 text-center"
@@ -115,7 +114,7 @@ const mapHudCards = computed(() => {
       class="rounded-[1.5rem]"
     />
 
-    <div v-else-if="bundle" class="flex min-h-0 flex-1 flex-col gap-2">
+    <div v-else-if="bundle" class="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
       <div
         class="rounded-[1rem] border border-slate-200/80 bg-[radial-gradient(circle_at_top_left,_rgba(34,197,94,0.08),_transparent_22%),radial-gradient(circle_at_top_right,_rgba(56,189,248,0.12),_transparent_28%),linear-gradient(145deg,_rgba(255,255,255,0.98),_rgba(239,248,251,0.96))] px-4 py-2.5 text-slate-950 shadow-[0_8px_24px_rgba(148,163,184,0.12)]"
       >
@@ -186,8 +185,8 @@ const mapHudCards = computed(() => {
         </div>
       </div>
 
-      <div class="space-y-2">
-        <div class="relative min-h-0">
+      <div class="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+        <div class="relative min-h-0 flex-1">
           <PassagePlaybackMap
             :route-coordinates="controller.fullTrackCoordinates.value"
             :completed-coordinates="controller.completedTrackCoordinates.value"
@@ -321,26 +320,10 @@ const mapHudCards = computed(() => {
               </div>
             </div>
           </div>
-
-          <div
-            class="absolute bottom-4 left-4 z-30 hidden w-[19rem] max-w-[calc(100%-2rem)] lg:block"
-          >
-            <PassagePlaybackRouteOverview
-              :track-geojson-raw="passage?.trackGeojson ?? null"
-              :route-coordinates="controller.fullTrackCoordinates.value"
-              :start-lat="bundle.startLat"
-              :start-lon="bundle.startLon"
-              :end-lat="bundle.endLat"
-              :end-lon="bundle.endLon"
-              :current-lat="playbackMetrics?.lat ?? null"
-              :current-lon="playbackMetrics?.lon ?? null"
-              @focus-route="controller.cameraMode.value = 'fit'"
-            />
-          </div>
         </div>
 
         <div
-          class="rounded-[1rem] border border-slate-200/80 bg-white/92 p-2.5 text-slate-950 shadow-sm"
+          class="shrink-0 rounded-[1rem] border border-slate-200/80 bg-white/92 p-2.5 text-slate-950 shadow-sm"
         >
           <div class="flex flex-wrap items-center gap-2">
             <UButton

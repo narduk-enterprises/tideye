@@ -20,7 +20,7 @@
 
       <!-- Main content -->
       <!-- eslint-disable-next-line narduk/no-native-layout -- layer scaffold: semantic landmark element -->
-      <main id="main-content" class="flex-1">
+      <main id="main-content" class="flex min-h-0 flex-1 flex-col">
         <slot></slot>
       </main>
 

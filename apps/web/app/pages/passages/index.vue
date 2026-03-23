@@ -19,7 +19,6 @@ const {
 const { selectedPassageId } = usePassageQuerySelection()
 
 const { data: passages, error, pending, refresh } = await usePassagesList()
-const appFetch = useAppFetch()
 
 const selectedKey = computed(() => selectedPassageId.value ?? '')
 const { data: selectedPassage } = await usePassageById(selectedKey)
@@ -153,33 +152,6 @@ function rowRouteHeadline(p: PassageDto) {
   return passageRouteHeadline(p, selectedPassageId.value === p.id ? places.value : null)
 }
 
-function passageHasStoredLabels(p: PassageDto) {
-  return Boolean(p.startPlaceLabel?.trim() && p.endPlaceLabel?.trim())
-}
-
-/**
- * Persist Apple place names for rows missing label columns (one batch per visit; re-open page to continue).
- */
-async function runBackfillPassageLabels() {
-  const list = passages.value
-  if (!list?.length) return
-  if (!list.some((p) => !passageHasStoredLabels(p))) return
-  try {
-    await appFetch('/api/passages/backfill-labels', { method: 'POST' })
-    await refresh()
-    if ((passages.value ?? []).some((p) => !passageHasStoredLabels(p))) {
-      await appFetch('/api/passages/backfill-labels', { method: 'POST' })
-      await refresh()
-    }
-  } catch {
-    /* Missing MapKit creds or rate limit — list still shows coordinates */
-  }
-}
-
-onMounted(() => {
-  void runBackfillPassageLabels()
-})
-
 const toast = useToast()
 
 function selectPassage(id: string | null) {
@@ -218,89 +190,8 @@ function selectPassageFromStats(id: string) {
 
 <template>
   <div
-    class="passages-page flex min-h-0 flex-1 flex-col pb-16 md:pb-0 h-[calc(100dvh-7rem)] md:h-[calc(100dvh-3.5rem)] md:min-h-[28rem]"
+    class="passages-page flex h-[calc(100dvh-7rem)] min-h-0 flex-col overflow-hidden md:h-[calc(100dvh-3.5rem)] md:min-h-[28rem]"
   >
-    <div class="shrink-0 border-b border-default bg-default/95 px-3 py-2 sm:px-4">
-      <div class="mx-auto flex max-w-screen-2xl flex-wrap items-center gap-x-3 gap-y-2">
-        <div class="flex min-w-0 items-center gap-2">
-          <span
-            class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
-          >
-            <UIcon name="i-lucide-route" class="size-4" />
-          </span>
-          <h1
-            class="font-display text-lg font-semibold leading-none tracking-tight text-default sm:text-xl"
-          >
-            Voyages
-          </h1>
-        </div>
-
-        <div
-          v-if="passages?.length"
-          class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted sm:text-sm"
-        >
-          <span class="font-medium tabular-nums text-default">{{ stats.count }} trips</span>
-          <span class="text-dimmed" aria-hidden="true">·</span>
-          <span class="tabular-nums">
-            <span class="font-medium text-default">{{ stats.totalNm.toFixed(0) }}</span>
-            nm total
-          </span>
-          <template v-if="stats.longest">
-            <span class="text-dimmed" aria-hidden="true">·</span>
-            <UButton
-              variant="link"
-              color="primary"
-              class="h-auto max-w-[10rem] truncate p-0 text-xs sm:max-w-none sm:text-sm"
-              @click="selectPassage(stats.longest!.id)"
-            >
-              Longest {{ stats.longest.distanceNm.toFixed(0) }} nm
-            </UButton>
-          </template>
-          <template v-if="seedNewestEndedLabel">
-            <span class="text-dimmed" aria-hidden="true">·</span>
-            <span class="text-dimmed" title="Latest ended_at in passages table (from seed)">
-              Data through {{ seedNewestEndedLabel }}
-            </span>
-          </template>
-        </div>
-
-        <div class="ml-auto flex shrink-0 items-center gap-0.5">
-          <UTooltip
-            text="Tap the map or a trip row to open it; the row expands with departure and arrival. A blue line shows the track on the map."
-            :delay-duration="0"
-          >
-            <UButton
-              icon="i-lucide-info"
-              variant="ghost"
-              color="neutral"
-              size="xs"
-              class="hidden sm:inline-flex"
-              aria-label="How voyages work"
-            />
-          </UTooltip>
-          <UButton
-            icon="i-lucide-chart-column-big"
-            variant="soft"
-            color="neutral"
-            size="xs"
-            @click="showStats = true"
-          >
-            <span class="hidden sm:inline">Stats</span>
-          </UButton>
-          <UButton
-            icon="i-lucide-refresh-cw"
-            variant="soft"
-            color="neutral"
-            size="xs"
-            :loading="pending"
-            @click="() => refresh()"
-          >
-            <span class="hidden sm:inline">Refresh</span>
-          </UButton>
-        </div>
-      </div>
-    </div>
-
     <UAlert
       v-if="error"
       color="error"
@@ -337,9 +228,9 @@ function selectPassageFromStats(id: string) {
       </div>
     </div>
 
-    <div v-else class="flex min-h-0 flex-1 flex-col gap-0 md:flex-row md:gap-0">
+    <div v-else class="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
       <div
-        class="order-2 flex min-h-0 w-full flex-col border-t border-default md:order-1 md:w-[min(18rem,31vw)] md:shrink-0 md:border-t-0 md:border-r"
+        class="order-2 flex min-h-0 flex-1 basis-[46%] flex-col border-t border-default md:order-1 md:w-[min(18rem,31vw)] md:flex-none md:basis-auto md:shrink-0 md:border-t-0 md:border-r"
       >
         <div class="min-h-0 flex-1 space-y-2.5 overflow-y-auto p-2 sm:p-2.5 md:pr-2">
           <div class="space-y-1">
@@ -550,20 +441,133 @@ function selectPassageFromStats(id: string) {
       </div>
 
       <div
-        class="order-1 min-h-[min(52vh,420px)] shrink-0 md:order-2 md:min-h-0 md:flex-1 md:p-2 md:pl-1"
+        class="order-1 flex min-h-0 flex-1 basis-[54%] flex-col overflow-hidden md:order-2 md:basis-auto md:p-2 md:pl-1"
       >
         <PassagePlaybackWorkspace
           v-if="selectedPassageId"
+          class="min-h-0 flex-1"
           :passage-id="selectedPassageId"
           :passage="selectedPassage"
           :places="places"
           :places-pending="placesPending"
         />
-        <PassagesMapExplorer
-          v-else
-          v-model:selected-id="selectedPassageId"
-          :passages="mapPassages"
-        />
+        <div v-else class="flex min-h-0 flex-1 flex-col gap-2 p-2 md:p-0">
+          <div
+            class="shrink-0 rounded-[1.15rem] border border-default bg-elevated/70 px-3.5 py-3 shadow-card"
+          >
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span
+                    class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
+                  >
+                    <UIcon name="i-lucide-route" class="size-4" />
+                  </span>
+                  <div class="min-w-0">
+                    <h1
+                      class="font-display text-lg font-semibold leading-none tracking-tight text-default sm:text-xl"
+                    >
+                      Voyages
+                    </h1>
+                    <p class="mt-1 text-xs leading-snug text-muted sm:text-sm">
+                      Track history, totals, and your longest run in one place.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex shrink-0 items-center gap-1">
+                <UTooltip
+                  text="Tap the map or a trip row to open it; the row expands with departure and arrival. A blue line shows the track on the map."
+                  :delay-duration="0"
+                >
+                  <UButton
+                    icon="i-lucide-info"
+                    variant="ghost"
+                    color="neutral"
+                    size="xs"
+                    aria-label="How voyages work"
+                  />
+                </UTooltip>
+                <UButton
+                  icon="i-lucide-chart-column-big"
+                  variant="soft"
+                  color="neutral"
+                  size="xs"
+                  @click="showStats = true"
+                >
+                  <span class="hidden sm:inline">Stats</span>
+                </UButton>
+                <UButton
+                  icon="i-lucide-refresh-cw"
+                  variant="soft"
+                  color="neutral"
+                  size="xs"
+                  :loading="pending"
+                  @click="() => refresh()"
+                >
+                  <span class="hidden sm:inline">Refresh</span>
+                </UButton>
+              </div>
+            </div>
+
+            <div class="mt-3 grid grid-cols-2 gap-2 xl:grid-cols-4">
+              <div class="rounded-xl border border-default bg-default/85 px-3 py-2.5">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-dimmed">
+                  Trips
+                </p>
+                <p class="mt-1.5 text-lg font-semibold tabular-nums text-default">
+                  {{ stats.count }}
+                </p>
+              </div>
+
+              <div class="rounded-xl border border-default bg-default/85 px-3 py-2.5">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-dimmed">
+                  Total sailed
+                </p>
+                <p class="mt-1.5 text-lg font-semibold tabular-nums text-default">
+                  {{ stats.totalNm.toFixed(0) }} nm
+                </p>
+              </div>
+
+              <UButton
+                v-if="stats.longest"
+                color="neutral"
+                variant="ghost"
+                class="h-auto rounded-xl border border-primary/20 bg-primary/5 px-3 py-2.5 text-left hover:bg-primary/10"
+                @click="selectPassage(stats.longest.id)"
+              >
+                <div class="min-w-0 text-left">
+                  <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/80">
+                    Longest
+                  </p>
+                  <p class="mt-1.5 text-lg font-semibold tabular-nums text-default">
+                    {{ stats.longest.distanceNm.toFixed(0) }} nm
+                  </p>
+                  <p class="mt-0.5 line-clamp-2 text-xs leading-snug text-muted">
+                    {{ rowRouteHeadline(stats.longest) }}
+                  </p>
+                </div>
+              </UButton>
+
+              <div
+                v-if="seedNewestEndedLabel"
+                class="rounded-xl border border-default bg-default/85 px-3 py-2.5"
+              >
+                <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-dimmed">
+                  Data through
+                </p>
+                <p class="mt-1.5 text-lg font-semibold text-default">
+                  {{ seedNewestEndedLabel }}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="min-h-0 flex-1 overflow-hidden">
+            <PassagesMapExplorer v-model:selected-id="selectedPassageId" :passages="mapPassages" />
+          </div>
+        </div>
       </div>
     </div>
   </div>

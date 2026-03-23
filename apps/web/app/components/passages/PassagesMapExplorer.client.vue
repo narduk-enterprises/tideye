@@ -159,7 +159,7 @@ const fallbackCenter = computed(() => {
 <template>
   <AppMapKit
     ref="mapRef"
-    class="passages-explorer-map h-full min-h-[min(52vh,420px)] w-full overflow-hidden rounded-xl border border-default md:min-h-0 md:rounded-xl"
+    class="passages-explorer-map h-full min-h-0 w-full overflow-hidden rounded-[1.1rem] border border-default"
     :fallback-center="fallbackCenter"
     :geojson="trackOverlayGeojson"
     :overlay-style-fn="voyageTrackOverlayStyle"

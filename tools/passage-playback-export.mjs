@@ -38,6 +38,7 @@ const REPO_ROOT = join(__dirname, '..')
 const OUTPUT_DIR =
   process.env.PASSAGE_EXPORT_OUT_DIR || join(REPO_ROOT, 'tools/.generated/passage-playback')
 const OUTPUT_PASSAGES_DIR = join(OUTPUT_DIR, 'passages')
+const LABELS_ONLY = /^(?:1|true|yes)$/i.test(process.env.PASSAGE_EXPORT_LABELS_ONLY || '')
 
 const BUCKET = process.env.INFLUX_BUCKET_MAIN || 'Tideye'
 const RANGE_START = process.env.PASSAGE_RANGE_START || '2023-11-01T00:00:00Z'
@@ -104,24 +105,6 @@ const TRAFFIC_POSITION_SOURCE =
 const TRAFFIC_NAME_SOURCE = process.env.PASSAGE_EXPORT_TRAFFIC_NAME_SOURCE || 'ydg-nmea-2000.2'
 
 const APPLE_LANG = 'en-US'
-const APPLE_CONTEXT_QUERIES = [
-  'marina',
-  'harbor',
-  'harbour',
-  'port',
-  'anchorage',
-  'bay',
-  'inlet',
-  'cay',
-  'island',
-  'settlement',
-  'town',
-  'village',
-  'sound',
-  'channel',
-  'river',
-  'creek',
-]
 const GENERIC_CONTEXTUAL_LABELS = new Set([
   'the bahamas',
   'bahamas',
@@ -134,15 +117,41 @@ const GENERIC_CONTEXTUAL_LABELS = new Set([
   'gulf of america',
   'gulf of mexico',
 ])
-const XAI_CONTEXT_MODEL = process.env.XAI_CONTEXT_MODEL || 'grok-4-0709'
+const XAI_CONTEXT_MODEL = process.env.XAI_CONTEXT_MODEL || 'grok-4'
+const XAI_CONTEXT_TIMEOUT_SECONDS = Number(process.env.PASSAGE_EXPORT_XAI_TIMEOUT_SECONDS || 45)
 const XAI_API_KEY = (process.env.XAI_API_KEY || '').trim()
 const CONTEXTUAL_AI_CACHE = new Map()
+const SUSPICIOUS_CONTEXTUAL_PATTERNS = [
+  /\briver\b/i,
+  /\bchannel\b/i,
+  /\bcut\b/i,
+  /\binlet\b/i,
+  /\bcreek\b/i,
+  /\bsound\b/i,
+  /\bshoal\b/i,
+  /\b(?:north|south|east|west|northwest|north west|northeast|north east|southwest|south west|southeast|south east)\s+(?:harbour|harbor)\b/i,
+]
 
 const ISO_PREFIX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/
 
 const INFLUX = resolveInfluxConnection()
 
 async function main() {
+  const appleResolver = await createAppleContextResolver()
+
+  if (LABELS_ONLY) {
+    process.stderr.write(`Label-only refinement in ${OUTPUT_DIR}\n`)
+    const manifestRows = loadExistingManifestRows()
+    if (!manifestRows.length) {
+      throw new Error(`No existing manifest passages found in ${OUTPUT_DIR}`)
+    }
+    refreshEndpointResolutionHints(manifestRows, appleResolver)
+    await backfillEndpointLabels(manifestRows, appleResolver)
+    writeManifest(manifestRows)
+    process.stderr.write(`Rewrote labels for ${manifestRows.length} passage bundle(s)\n`)
+    return
+  }
+
   process.stderr.write(
     `Playback export from ${BUCKET} via ${INFLUX.label} (${RANGE_START} .. ${RANGE_STOP})\n`,
   )
@@ -159,8 +168,6 @@ async function main() {
   const selected = LIMIT_PASSAGES > 0 ? passages.slice(0, LIMIT_PASSAGES) : passages
   process.stderr.write(`Detected ${passages.length} passage(s); exporting ${selected.length}\n`)
 
-  const appleResolver = await createAppleContextResolver()
-
   rmSync(OUTPUT_DIR, { recursive: true, force: true })
   mkdirSync(OUTPUT_PASSAGES_DIR, { recursive: true })
 
@@ -171,34 +178,44 @@ async function main() {
       `Passage ${i + 1}/${selected.length}: ${coarse.startedAt} .. ${coarse.endedAt}\n`,
     )
     const bundle = exportPassageBundle(i, coarse, appleResolver)
-    const relPath = `passages/${bundle.id}.json`
-    writeFileSync(join(OUTPUT_DIR, relPath), `${JSON.stringify(bundle, null, 2)}\n`, 'utf8')
+    const { _labelResolution, ...persistedBundle } = bundle
+    const relPath = `passages/${persistedBundle.id}.json`
+    writeFileSync(join(OUTPUT_DIR, relPath), `${JSON.stringify(persistedBundle, null, 2)}\n`, 'utf8')
     manifestRows.push({
-      id: bundle.id,
-      title: bundle.title,
-      startedAt: bundle.startedAt,
-      endedAt: bundle.endedAt,
-      startLat: bundle.startLat,
-      startLon: bundle.startLon,
-      endLat: bundle.endLat,
-      endLon: bundle.endLon,
-      distanceNm: bundle.summary.distanceNm,
-      durationHours: bundle.summary.durationHours,
-      avgSog: bundle.summary.avgSog,
-      maxSog: bundle.summary.maxSog,
-      startPlaceLabel: bundle.startPlaceLabel,
-      endPlaceLabel: bundle.endPlaceLabel,
+      id: persistedBundle.id,
+      title: persistedBundle.title,
+      startedAt: persistedBundle.startedAt,
+      endedAt: persistedBundle.endedAt,
+      startLat: persistedBundle.startLat,
+      startLon: persistedBundle.startLon,
+      endLat: persistedBundle.endLat,
+      endLon: persistedBundle.endLon,
+      distanceNm: persistedBundle.summary.distanceNm,
+      durationHours: persistedBundle.summary.durationHours,
+      avgSog: persistedBundle.summary.avgSog,
+      maxSog: persistedBundle.summary.maxSog,
+      startPlaceLabel: persistedBundle.startPlaceLabel,
+      endPlaceLabel: persistedBundle.endPlaceLabel,
       file: relPath,
-      sampleCount: bundle.self.samples.length,
-      trafficVesselCount: bundle.traffic.vessels.length,
-      selfWindow: bundle.self.window,
-      trafficWindow: bundle.traffic.window,
-      sources: bundle.sources,
+      sampleCount: persistedBundle.self.samples.length,
+      trafficVesselCount: persistedBundle.traffic.vessels.length,
+      selfWindow: persistedBundle.self.window,
+      trafficWindow: persistedBundle.traffic.window,
+      sources: persistedBundle.sources,
+      _startNeedsRefine: _labelResolution.startNeedsRefine,
+      _endNeedsRefine: _labelResolution.endNeedsRefine,
+      _startReverseSummary: _labelResolution.startReverseSummary,
+      _endReverseSummary: _labelResolution.endReverseSummary,
     })
   }
 
   await backfillEndpointLabels(manifestRows, appleResolver)
 
+  writeManifest(manifestRows)
+  process.stderr.write(`Wrote ${manifestRows.length} passage bundle(s) to ${OUTPUT_DIR}\n`)
+}
+
+function writeManifest(manifestRows) {
   const manifest = {
     v: 1,
     generatedAt: new Date().toISOString(),
@@ -221,48 +238,64 @@ async function main() {
       minPassageDurationHours: MIN_PASSAGE_DURATION_HOURS,
       trafficProximityNm: TRAFFIC_PROXIMITY_NM,
     },
-    passages: manifestRows,
+    passages: manifestRows.map(toPublicManifestRow),
   }
 
   writeFileSync(join(OUTPUT_DIR, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8')
-  process.stderr.write(`Wrote ${manifestRows.length} passage bundle(s) to ${OUTPUT_DIR}\n`)
 }
 
 async function backfillEndpointLabels(manifestRows, appleResolver) {
   const clusters = buildEndpointClusters(manifestRows)
-  const knownPoints = clusters
-    .filter((cluster) => cluster.label)
-    .map((cluster) => ({
-      label: cluster.label,
-      lat: cluster.lat,
-      lon: cluster.lon,
-    }))
-
   const accessToken = appleResolver?.accessToken || null
-  for (const cluster of clusters) {
-    if (cluster.label) continue
 
-    const contextualLabel = accessToken
-      ? resolveClusterLabelFromRouteContext(accessToken, cluster, clusters, manifestRows)
-      : null
-    const strictFallback =
-      contextualLabel ||
-      nearestKnownEndpointLabel(
-        cluster.lat,
-        cluster.lon,
-        knownPoints,
-        Array.from(cluster.avoidLabels),
-        LABEL_STRICT_NEIGHBOR_MAX_NM,
-      )
+  for (let pass = 0; pass < 4; pass++) {
+    let changed = false
+    const knownPoints = clusters
+      .filter((cluster) => cluster.label && !cluster.needsRefine)
+      .map((cluster) => ({
+        label: cluster.label,
+        lat: cluster.lat,
+        lon: cluster.lon,
+      }))
 
-    if (!strictFallback) continue
+    for (const cluster of clusters) {
+      if (cluster.label && !cluster.needsRefine) continue
 
-    cluster.label = strictFallback
-    knownPoints.push({
-      label: strictFallback,
-      lat: cluster.lat,
-      lon: cluster.lon,
-    })
+      const contextualLabel =
+        accessToken || cluster.reverseSummaries.length
+          ? resolveClusterLabelFromRouteContext(cluster, clusters, manifestRows)
+          : null
+      const strictFallback =
+        contextualLabel ||
+        (!cluster.label
+          ? nearestKnownEndpointLabel(
+              cluster.lat,
+              cluster.lon,
+              knownPoints,
+              Array.from(cluster.avoidLabels),
+              LABEL_STRICT_NEIGHBOR_MAX_NM,
+            )
+          : null)
+
+      if (!strictFallback) continue
+
+      if (cluster.label === strictFallback && !cluster.needsRefine) continue
+
+      cluster.label = strictFallback
+      cluster.needsRefine = false
+      for (const member of cluster.members) {
+        if (member.side === 'start') {
+          member.row.startPlaceLabel = strictFallback
+          member.row._startNeedsRefine = false
+        } else {
+          member.row.endPlaceLabel = strictFallback
+          member.row._endNeedsRefine = false
+        }
+      }
+      changed = true
+    }
+
+    if (!changed) break
   }
 
   for (const cluster of clusters) {
@@ -312,9 +345,73 @@ function buildEndpointClusters(manifestRows) {
 
   for (const cluster of clusters) {
     cluster.label = pickClusterLabel(cluster.seedLabels)
+    cluster.needsRefine = cluster.needsRefine || !cluster.label || isSuspiciousContextualLabel(cluster.label)
+    cluster.reverseSummaries = Array.from(cluster.reverseSummaries)
   }
 
   return clusters
+}
+
+function toPublicManifestRow(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    startedAt: row.startedAt,
+    endedAt: row.endedAt,
+    startLat: row.startLat,
+    startLon: row.startLon,
+    endLat: row.endLat,
+    endLon: row.endLon,
+    distanceNm: row.distanceNm,
+    durationHours: row.durationHours,
+    avgSog: row.avgSog,
+    maxSog: row.maxSog,
+    startPlaceLabel: row.startPlaceLabel,
+    endPlaceLabel: row.endPlaceLabel,
+    file: row.file,
+    sampleCount: row.sampleCount,
+    trafficVesselCount: row.trafficVesselCount,
+    selfWindow: row.selfWindow,
+    trafficWindow: row.trafficWindow,
+    sources: row.sources,
+  }
+}
+
+function loadExistingManifestRows() {
+  const manifestPath = join(OUTPUT_DIR, 'manifest.json')
+  if (!existsSync(manifestPath)) return []
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+  const rows = Array.isArray(manifest?.passages) ? manifest.passages : []
+  return rows.map((row) => ({
+    ...row,
+    _startNeedsRefine: false,
+    _endNeedsRefine: false,
+    _startReverseSummary: null,
+    _endReverseSummary: null,
+  }))
+}
+
+function refreshEndpointResolutionHints(manifestRows, appleResolver) {
+  for (const row of manifestRows) {
+    const startResolved = appleResolver ? appleResolver(row.startLat, row.startLon) : null
+    const endResolved = appleResolver ? appleResolver(row.endLat, row.endLon) : null
+
+    row._startReverseSummary = startResolved?.reverseSummary || null
+    row._endReverseSummary = endResolved?.reverseSummary || null
+    row._startNeedsRefine = Boolean(
+      startResolved?.needsRefine || isSuspiciousContextualLabel(row.startPlaceLabel),
+    )
+    row._endNeedsRefine = Boolean(
+      endResolved?.needsRefine || isSuspiciousContextualLabel(row.endPlaceLabel),
+    )
+
+    if ((!row.startPlaceLabel || row._startNeedsRefine) && startResolved?.label) {
+      row.startPlaceLabel = startResolved.label
+    }
+    if ((!row.endPlaceLabel || row._endNeedsRefine) && endResolved?.label) {
+      row.endPlaceLabel = endResolved.label
+    }
+  }
 }
 
 function addEndpointToClusters(clusters, row, side, lat, lon, label) {
@@ -336,6 +433,8 @@ function addEndpointToClusters(clusters, row, side, lat, lon, label) {
       members: [],
       seedLabels: [],
       avoidLabels: new Set(),
+      needsRefine: false,
+      reverseSummaries: new Set(),
     }
     clusters.push(bestCluster)
   } else {
@@ -344,10 +443,14 @@ function addEndpointToClusters(clusters, row, side, lat, lon, label) {
     bestCluster.lon = (bestCluster.lon * size + lon) / (size + 1)
   }
 
+  const memberNeedsRefine = side === 'start' ? row._startNeedsRefine : row._endNeedsRefine
+  const memberReverseSummary = side === 'start' ? row._startReverseSummary : row._endReverseSummary
   bestCluster.members.push({ row, side, lat, lon })
   if (label) {
     bestCluster.seedLabels.push(label)
   }
+  if (memberNeedsRefine) bestCluster.needsRefine = true
+  if (memberReverseSummary) bestCluster.reverseSummaries.add(memberReverseSummary)
 }
 
 function pickClusterLabel(labels) {
@@ -370,38 +473,14 @@ function pickClusterLabel(labels) {
   return best
 }
 
-function resolveClusterLabelFromRouteContext(accessToken, cluster, clusters, manifestRows) {
+function resolveClusterLabelFromRouteContext(cluster, clusters, manifestRows) {
   if (!XAI_API_KEY) return null
 
-  const reverse = reverseGeocodeCoordinate(accessToken, cluster.lat, cluster.lon)
-  const rawCandidates = []
-  const regions = [
-    smallSearchRegion(cluster.lat, cluster.lon, 12),
-    smallSearchRegion(cluster.lat, cluster.lon, 24),
-  ]
-
-  for (const region of regions) {
-    for (const query of APPLE_CONTEXT_QUERIES) {
-      rawCandidates.push(...searchPlaces(accessToken, query, cluster.lat, cluster.lon, region))
-    }
-  }
-
-  const nearbyCandidates = collectNearbyContextualCandidates(
-    rawCandidates,
-    cluster.lat,
-    cluster.lon,
-  )
   const routeContext = collectClusterRouteContext(cluster, clusters, manifestRows)
-  const candidateLabels = new Set(
-    nearbyCandidates.map((candidate) => normalizeContextualKey(candidate.label)).filter(Boolean),
-  )
+  const reverseSummary = cluster.reverseSummaries[0] || null
 
   for (const label of routeContext.oppositeLabels) {
     cluster.avoidLabels.add(label)
-  }
-
-  if (!nearbyCandidates.length) {
-    return null
   }
 
   const payload = postSyncJson('https://api.x.ai/v1/chat/completions', XAI_API_KEY, {
@@ -412,29 +491,19 @@ function resolveClusterLabelFromRouteContext(accessToken, cluster, clusters, man
       {
         role: 'system',
         content:
-          'You label sailing stop locations for cruisers. Return JSON only in the form {"label": string|null}. Use the route context and nearby Apple place candidates to choose a familiar local place name sailors would actually use. Prefer known cays, islands, anchorages, harbors, marinas, settlements, and towns. Avoid obscure cuts, channels, and chart micro-features unless they are clearly the common local name. Do not simply repeat another distinct nearby stop unless the evidence shows it is the same place.',
+          'You label sailing stop locations for cruisers. Return JSON only in the form {"label": string|null}. Use the route context and Apple reverse geocode to choose a familiar local place name sailors would actually use. Prefer known cays, islands, anchorages, harbors, marinas, settlements, and towns. Avoid obscure cuts, channels, rivers, and chart micro-features unless they are clearly the common local name. Do not simply repeat another distinct nearby stop unless the evidence shows it is the same place.',
       },
       {
         role: 'user',
         content: [
           `Coordinate: ${cluster.lat.toFixed(5)}, ${cluster.lon.toFixed(5)}`,
-          reverse ? `Apple reverse geocode: ${summarizeAppleResult(reverse)}` : null,
+          reverseSummary ? `Apple reverse geocode: ${reverseSummary}` : null,
           routeContext.oppositeLabels.length
             ? `Directly connected passage endpoints:\n${routeContext.oppositeLabels.map((label) => `- ${label}`).join('\n')}`
             : null,
           routeContext.nearbyKnown.length
             ? `Nearby already-resolved stops:\n${routeContext.nearbyKnown
                 .map((candidate) => `- ${candidate.label} (${candidate.distanceNm.toFixed(1)} nm)`)
-                .join('\n')}`
-            : null,
-          nearbyCandidates.length
-            ? `Nearby Apple candidates:\n${nearbyCandidates
-                .map((candidate) => {
-                  const suffix = candidate.poiCategory
-                    ? ` (${candidate.poiCategory}, ${candidate.distanceNm.toFixed(1)} nm)`
-                    : ` (${candidate.distanceNm.toFixed(1)} nm)`
-                  return `- ${candidate.label}${suffix}`
-                })
                 .join('\n')}`
             : null,
         ]
@@ -446,7 +515,6 @@ function resolveClusterLabelFromRouteContext(accessToken, cluster, clusters, man
 
   const label = parseXaiContextualLabel(payload)
   if (!label) return null
-  if (!candidateLabels.has(normalizeContextualKey(label))) return null
   if (cluster.avoidLabels.has(label)) return null
   return label
 }
@@ -462,15 +530,30 @@ function collectClusterRouteContext(cluster, clusters, manifestRows) {
       member.side === 'start'
         ? member.row.endPlaceLabel || null
         : member.row.startPlaceLabel || null
-    if (oppositeLabel) oppositeLabels.add(oppositeLabel)
+    const oppositeNeedsRefine = member.side === 'start' ? member.row._endNeedsRefine : member.row._startNeedsRefine
+    if (oppositeLabel && !oppositeNeedsRefine && !isSuspiciousContextualLabel(oppositeLabel)) {
+      oppositeLabels.add(oppositeLabel)
+    }
 
     const neighborRows = [
       manifestRows[manifestRows.indexOf(member.row) - 1],
       manifestRows[manifestRows.indexOf(member.row) + 1],
     ].filter(Boolean)
     for (const neighbor of neighborRows) {
-      if (neighbor.startPlaceLabel) oppositeLabels.add(neighbor.startPlaceLabel)
-      if (neighbor.endPlaceLabel) oppositeLabels.add(neighbor.endPlaceLabel)
+      if (
+        neighbor.startPlaceLabel &&
+        !neighbor._startNeedsRefine &&
+        !isSuspiciousContextualLabel(neighbor.startPlaceLabel)
+      ) {
+        oppositeLabels.add(neighbor.startPlaceLabel)
+      }
+      if (
+        neighbor.endPlaceLabel &&
+        !neighbor._endNeedsRefine &&
+        !isSuspiciousContextualLabel(neighbor.endPlaceLabel)
+      ) {
+        oppositeLabels.add(neighbor.endPlaceLabel)
+      }
     }
 
     cluster.avoidLabels.add(oppositeLabel || '')
@@ -478,7 +561,7 @@ function collectClusterRouteContext(cluster, clusters, manifestRows) {
   }
 
   for (const other of clusters) {
-    if (other === cluster || !other.label) continue
+    if (other === cluster || !other.label || other.needsRefine || isSuspiciousContextualLabel(other.label)) continue
     const distanceNm = haversineNm(cluster.lat, cluster.lon, other.lat, other.lon)
     if (distanceNm > LABEL_NEIGHBOR_MAX_NM) continue
     nearbyKnown.push({ label: other.label, distanceNm })
@@ -703,6 +786,12 @@ function exportPassageBundle(index, coarse, appleResolver) {
       samples: selfSamples.map(toSelfSampleRecord),
     },
     traffic,
+    _labelResolution: {
+      startReverseSummary: labels.startReverseSummary,
+      endReverseSummary: labels.endReverseSummary,
+      startNeedsRefine: labels.startNeedsRefine,
+      endNeedsRefine: labels.endNeedsRefine,
+    },
   }
 }
 
@@ -842,17 +931,18 @@ function exportTrafficBundle(startIso, stopIso, ownSamples, windowEvery) {
     'navigation.headingTrue',
   )
 
-  const nameMap = fetchTrafficNameMap(startIso, stopIso)
-  const typeMap = fetchTrafficMetadataMap(startIso, stopIso, 'design.aisShipType')
-  const lengthMap = fetchTrafficMetadataMap(startIso, stopIso, 'design.length')
-  const beamMap = fetchTrafficMetadataMap(startIso, stopIso, 'design.beam')
-  const draftMap = fetchTrafficMetadataMap(startIso, stopIso, 'design.draft')
+  const nameMap = fetchTrafficNameMap(startIso, stopIso, contexts)
+  const typeMap = fetchTrafficMetadataMap(startIso, stopIso, 'design.aisShipType', contexts)
+  const lengthMap = fetchTrafficMetadataMap(startIso, stopIso, 'design.length', contexts)
+  const beamMap = fetchTrafficMetadataMap(startIso, stopIso, 'design.beam', contexts)
+  const draftMap = fetchTrafficMetadataMap(startIso, stopIso, 'design.draft', contexts)
   const destinationMap = fetchTrafficMetadataMap(
     startIso,
     stopIso,
     'navigation.destination.commonName',
+    contexts,
   )
-  const aisClassMap = fetchTrafficMetadataMap(startIso, stopIso, 'sensors.ais.class')
+  const aisClassMap = fetchTrafficMetadataMap(startIso, stopIso, 'sensors.ais.class', contexts)
   const maxSamplesPerVessel = Math.max(
     120,
     Math.min(
@@ -995,34 +1085,39 @@ function fetchTrafficScalarMap(startIso, stopIso, every, contexts, measurement) 
   return out
 }
 
-function fetchTrafficNameMap(startIso, stopIso) {
-  const raw = runInflux(
-    fluxTrafficNames(addHoursIso(startIso, -TRAFFIC_METADATA_LOOKBACK_HOURS), stopIso),
-  )
-  const rows = parseAnnotatedCsv(raw)
+function fetchTrafficNameMap(startIso, stopIso, contexts) {
   const out = new Map()
-  for (const row of rows) {
-    const context = row.context
-    if (!context) continue
-    out.set(context, row.encoded || '')
+  for (const batch of chunkArray(contexts, TRAFFIC_CONTEXT_BATCH_SIZE)) {
+    const raw = runInflux(
+      fluxTrafficNames(addHoursIso(startIso, -TRAFFIC_METADATA_LOOKBACK_HOURS), stopIso, batch),
+    )
+    const rows = parseAnnotatedCsv(raw)
+    for (const row of rows) {
+      const context = row.context
+      if (!context) continue
+      out.set(context, row.encoded || '')
+    }
   }
   return out
 }
 
-function fetchTrafficMetadataMap(startIso, stopIso, measurement) {
-  const raw = runInflux(
-    fluxTrafficMetadata(
-      addHoursIso(startIso, -TRAFFIC_METADATA_LOOKBACK_HOURS),
-      stopIso,
-      measurement,
-    ),
-  )
-  const rows = parseAnnotatedCsv(raw)
+function fetchTrafficMetadataMap(startIso, stopIso, measurement, contexts) {
   const out = new Map()
-  for (const row of rows) {
-    const context = row.context
-    if (!context) continue
-    out.set(context, row.encoded || '')
+  for (const batch of chunkArray(contexts, TRAFFIC_CONTEXT_BATCH_SIZE)) {
+    const raw = runInflux(
+      fluxTrafficMetadata(
+        addHoursIso(startIso, -TRAFFIC_METADATA_LOOKBACK_HOURS),
+        stopIso,
+        measurement,
+        batch,
+      ),
+    )
+    const rows = parseAnnotatedCsv(raw)
+    for (const row of rows) {
+      const context = row.context
+      if (!context) continue
+      out.set(context, row.encoded || '')
+    }
   }
   return out
 }
@@ -1233,30 +1328,31 @@ from(bucket: "${BUCKET}")
 `.trim()
 }
 
-function fluxTrafficNames(start, stop) {
+function fluxTrafficNames(start, stop, contexts) {
   return `
 import "json"
+import "strings"
 
 from(bucket: "${BUCKET}")
   |> range(start: ${start}, stop: ${stop})
   |> filter(fn: (r) =>
     r.self != "true"
     and r.context =~ /^vessels\\./
-    and r.source == "${TRAFFIC_NAME_SOURCE}")
-  |> group(columns: ["context", "source", "_measurement", "_field"])
+    and (${fluxContextOrExpr(contexts)})
+    and r._measurement == "<empty>"
+    and r._field == "value")
+  |> filter(fn: (r) => strings.containsStr(v: display(v: r._value), substr: "name"))
+  |> group(columns: ["context"])
   |> last()
   |> map(fn: (r) => ({
     context: r.context,
-    source: r.source,
-    measurement_display: display(v: r._measurement),
     encoded: string(v: json.encode(v: r._value)),
   }))
-  |> filter(fn: (r) => r.measurement_display == "<empty>")
   |> keep(columns: ["context", "encoded"])
 `.trim()
 }
 
-function fluxTrafficMetadata(start, stop, measurement) {
+function fluxTrafficMetadata(start, stop, measurement, contexts) {
   return `
 import "json"
 
@@ -1265,6 +1361,7 @@ from(bucket: "${BUCKET}")
   |> filter(fn: (r) =>
     r.self != "true"
     and r.context =~ /^vessels\\./
+    and (${fluxContextOrExpr(contexts)})
     and r._measurement == "${measurement}")
   |> group(columns: ["context"])
   |> last()
@@ -1864,6 +1961,10 @@ function resolveEndpointLabels(appleResolver, start, end) {
       endLabel: right,
       startStored: startResolved?.label || null,
       endStored: endResolved?.label || null,
+      startReverseSummary: startResolved?.reverseSummary || null,
+      endReverseSummary: endResolved?.reverseSummary || null,
+      startNeedsRefine: Boolean(startResolved?.needsRefine),
+      endNeedsRefine: Boolean(endResolved?.needsRefine),
     }
   } catch {
     return {
@@ -1871,6 +1972,10 @@ function resolveEndpointLabels(appleResolver, start, end) {
       endLabel: coordEnd,
       startStored: null,
       endStored: null,
+      startReverseSummary: null,
+      endReverseSummary: null,
+      startNeedsRefine: true,
+      endNeedsRefine: true,
     }
   }
 }
@@ -1946,27 +2051,12 @@ function resolveContextualPlaceLabel(accessToken, lat, lng) {
   if (!reverse) return null
 
   const direct = pickContextualLabel(reverse)
-  if (direct) return { label: direct }
-
-  const region = smallSearchRegion(lat, lng, 10)
-  const nearbyCandidates = []
-  for (const query of APPLE_CONTEXT_QUERIES) {
-    const nearby = searchPlaces(accessToken, query, lat, lng, region)
-    nearbyCandidates.push(...nearby)
-    const best = rankNearbyContextualResult(nearby, lat, lng)
-    if (best) return { label: best }
+  const label = pickPreferredReverseLabel(reverse, direct)
+  return {
+    label,
+    reverseSummary: summarizeAppleResult(reverse),
+    needsRefine: !label || (direct ? isSuspiciousContextualLabel(direct, reverse) : false),
   }
-
-  const broaderRegion = smallSearchRegion(lat, lng, 24)
-  for (const query of APPLE_CONTEXT_QUERIES) {
-    const nearby = searchPlaces(accessToken, query, lat, lng, broaderRegion)
-    nearbyCandidates.push(...nearby)
-  }
-
-  const aiLabel = disambiguateContextualLabelWithXai(lat, lng, reverse, nearbyCandidates)
-  if (aiLabel) return { label: aiLabel }
-
-  return null
 }
 
 function reverseGeocodeCoordinate(accessToken, lat, lng) {
@@ -2010,8 +2100,10 @@ function postSyncJson(url, apiKey, payload) {
       'curl',
       [
         '-sS',
+        '--connect-timeout',
+        '10',
         '--max-time',
-        '20',
+        String(XAI_CONTEXT_TIMEOUT_SECONDS),
         '-X',
         'POST',
         '-H',
@@ -2169,6 +2261,27 @@ function pickContextualLabel(result) {
   return null
 }
 
+function pickPreferredReverseLabel(result, directLabel) {
+  if (directLabel && !isSuspiciousContextualLabel(directLabel, result)) return directLabel
+
+  const structured = result?.structuredAddress || {}
+  const fallbacks = [
+    structured.locality,
+    structured.subLocality,
+    structured.dependentLocalities?.[0],
+    directLabel,
+    structured.areasOfInterest?.[0],
+  ]
+
+  for (const candidate of fallbacks) {
+    const cleaned = cleanContextualLabel(candidate)
+    if (!cleaned || isGenericContextualLabel(cleaned, result)) continue
+    return cleaned
+  }
+
+  return null
+}
+
 function rankNearbyContextualResult(results, lat, lng) {
   let best = null
   let bestScore = -Infinity
@@ -2200,6 +2313,14 @@ function cleanContextualLabel(value) {
 function normalizeContextualKey(value) {
   if (typeof value !== 'string') return ''
   return value.trim().replace(/\s+/g, ' ').toLowerCase()
+}
+
+function isSuspiciousContextualLabel(value, result) {
+  if (typeof value !== 'string') return true
+  const cleaned = value.trim()
+  if (!cleaned) return true
+  if (GENERIC_CONTEXTUAL_LABELS.has(normalizeContextualKey(cleaned))) return true
+  return SUSPICIOUS_CONTEXTUAL_PATTERNS.some((pattern) => pattern.test(cleaned))
 }
 
 function isSpecificMarinePlaceLabel(value) {

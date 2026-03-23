@@ -40,6 +40,7 @@ const colorMode = useColorMode() as { value: string }
 const mapContainer = ref<HTMLElement | null>(null)
 
 let map: any | null = null
+let routeOverlay: any | null = null
 let completedOverlay: any | null = null
 let wakeOverlay: any | null = null
 let selfAnnotation: any | null = null
@@ -98,6 +99,24 @@ function styleForColor(color: string, lineWidth: number, opacity = 1, dash: numb
     lineDash: dash,
   })
 }
+
+function routeGhostColor() {
+  return colorMode.value === 'dark' ? '#7dd3fc' : '#0f766e'
+}
+
+function progressRouteColor() {
+  return colorMode.value === 'dark' ? '#38bdf8' : '#0284c7'
+}
+
+function wakeRouteColor() {
+  return colorMode.value === 'dark' ? '#f8fafc' : '#ffffff'
+}
+
+const cameraModeLabel = computed(() => {
+  if (props.cameraMode === 'fit') return 'Full passage'
+  if (props.cameraMode === 'lead') return 'Lead vessel'
+  return 'Follow vessel'
+})
 
 function vesselColor(vessel: PlaybackMapVessel, selected = false) {
   if (vessel.kind === 'self') return selected ? '#38bdf8' : '#0ea5e9'
@@ -220,9 +239,10 @@ function updateMarkerVisual(
 
 function clearOverlays() {
   if (!map) return
-  for (const overlay of [completedOverlay, wakeOverlay]) {
+  for (const overlay of [routeOverlay, completedOverlay, wakeOverlay]) {
     if (overlay) map.removeOverlay(overlay)
   }
+  routeOverlay = null
   completedOverlay = null
   wakeOverlay = null
 }
@@ -230,18 +250,26 @@ function clearOverlays() {
 function rebuildRouteOverlays() {
   if (!map) return
 
-  for (const overlay of [completedOverlay, wakeOverlay]) {
+  for (const overlay of [routeOverlay, completedOverlay, wakeOverlay]) {
     if (overlay) map.removeOverlay(overlay)
   }
 
+  routeOverlay = null
   completedOverlay = null
   wakeOverlay = null
+
+  if (props.routeCoordinates.length >= 2) {
+    routeOverlay = new mapkit.PolylineOverlay(createCoordinateList(props.routeCoordinates), {
+      style: styleForColor(routeGhostColor(), 5, colorMode.value === 'dark' ? 0.3 : 0.22),
+    })
+    map.addOverlay(routeOverlay)
+  }
 
   if (props.completedCoordinates.length >= 2) {
     completedOverlay = new mapkit.PolylineOverlay(
       createCoordinateList(props.completedCoordinates),
       {
-        style: styleForColor('#0ea5e9', 4, 0.98),
+        style: styleForColor(progressRouteColor(), 5, 0.98),
       },
     )
     map.addOverlay(completedOverlay)
@@ -249,7 +277,7 @@ function rebuildRouteOverlays() {
 
   if (props.wakeCoordinates.length >= 2) {
     wakeOverlay = new mapkit.PolylineOverlay(createCoordinateList(props.wakeCoordinates), {
-      style: styleForColor('#f8fafc', 2, 0.55),
+      style: styleForColor(wakeRouteColor(), 2.5, colorMode.value === 'dark' ? 0.78 : 0.68),
     })
     map.addOverlay(wakeOverlay)
   }
@@ -546,6 +574,7 @@ function buildFallbackPath(coords: Array<[number, number]>) {
     .join(' ')
 }
 
+const fallbackRoutePath = computed(() => buildFallbackPath(props.routeCoordinates))
 const fallbackCompletedPath = computed(() => buildFallbackPath(props.completedCoordinates))
 const fallbackWakePath = computed(() => buildFallbackPath(props.wakeCoordinates))
 
@@ -666,7 +695,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    class="relative isolate h-[56dvh] min-h-[30rem] overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-[linear-gradient(180deg,_rgba(241,248,250,0.97),_rgba(226,238,242,0.95))] shadow-[0_18px_40px_rgba(148,163,184,0.14)] xl:h-[64dvh]"
+    class="relative isolate h-full min-h-[13rem] overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-[linear-gradient(180deg,_rgba(241,248,250,0.97),_rgba(226,238,242,0.95))] shadow-[0_18px_40px_rgba(148,163,184,0.14)] sm:min-h-[18rem] xl:min-h-[24rem]"
   >
     <div
       class="absolute left-4 top-4 z-20 rounded-full border border-white/75 bg-white/80 px-3 py-1.5 shadow-sm backdrop-blur"
@@ -691,6 +720,9 @@ onBeforeUnmount(() => {
         />
         <span class="font-semibold text-slate-800">
           {{ mapkitError ? 'Fallback chart' : !mapkitReady ? 'Preparing map' : 'Playback map' }}
+        </span>
+        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">
+          {{ cameraModeLabel }}
         </span>
       </div>
     </div>
@@ -753,6 +785,16 @@ onBeforeUnmount(() => {
         :width="FALLBACK_VIEWBOX.width"
         :height="FALLBACK_VIEWBOX.height"
         fill="url(#playback-grid)"
+      />
+
+      <path
+        v-if="fallbackRoutePath"
+        :d="fallbackRoutePath"
+        fill="none"
+        stroke="url(#playback-route)"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="7"
       />
 
       <path
