@@ -31,8 +31,8 @@ Switch to the large-annotation pattern when:
 4. Key all annotations by stable entity id.
 5. Update `annotation.coordinate` in place when the marker only moved.
 6. Rebuild markers only when their DOM shape actually changed.
-7. Use overlays for derived visuals like vectors, trails, route lines, and
-   dense point clouds.
+7. Use overlays for derived visuals like vectors, trails, route lines, and dense
+   point clouds.
 8. Avoid reactive wrapping of raw MapKit objects. Store them in plain `Map`s and
    local variables.
 
@@ -117,7 +117,9 @@ already on the map.
 const MOVEMENT_THRESHOLD_M = 15
 
 function refreshAnnotations(map: MapKitMap, entities: Entity[]) {
-  const visible = entities.filter((entity) => entity.lat != null && entity.lng != null)
+  const visible = entities.filter(
+    (entity) => entity.lat != null && entity.lng != null,
+  )
   const nextIds = new Set(visible.map((entity) => entity.id))
 
   for (const [id, annotation] of annotations) {
@@ -150,10 +152,15 @@ function refreshAnnotations(map: MapKitMap, entities: Entity[]) {
 
     if (
       prev &&
-      haversineMeters(prev.lat, prev.lng, entity.lat, entity.lng) >= MOVEMENT_THRESHOLD_M
+      haversineMeters(prev.lat, prev.lng, entity.lat, entity.lng) >=
+        MOVEMENT_THRESHOLD_M
     ) {
       existing.coordinate = new mapkit.Coordinate(entity.lat, entity.lng)
-      updateMarkerVisual(iconEls.get(entity.id)!, labelEls.get(entity.id) ?? null, entity)
+      updateMarkerVisual(
+        iconEls.get(entity.id)!,
+        labelEls.get(entity.id) ?? null,
+        entity,
+      )
       lastRendered.set(entity.id, { lat: entity.lat, lng: entity.lng })
       anyMoved = true
     }

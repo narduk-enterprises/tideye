@@ -147,7 +147,10 @@ function normalizeGeojson(value: unknown): PassagePlaybackGeojson | null {
   return record as unknown as PassagePlaybackGeojson
 }
 
-async function loadGeneratedPlaybackBundle(id: string): Promise<PassagePlaybackBundle | null> {
+async function loadGeneratedPlaybackBundle(
+  event: H3Event,
+  id: string,
+): Promise<PassagePlaybackBundle | null> {
   try {
     const [{ access }, pathModule, urlModule] = await Promise.all([
       import('node:fs/promises'),
@@ -155,7 +158,7 @@ async function loadGeneratedPlaybackBundle(id: string): Promise<PassagePlaybackB
       import('node:url'),
     ])
 
-    const fromEnv = process.env.PASSAGE_EXPORT_OUT_DIR?.trim()
+    const fromEnv = String(useRuntimeConfig(event).passageExportOutDir || '').trim()
     const cwd = process.cwd()
     const fallbackRoot = urlModule.fileURLToPath(
       new URL('../../../../../../tools/.generated/passage-playback', import.meta.url),
@@ -257,7 +260,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Missing passage id' })
   }
 
-  const generated = await loadGeneratedPlaybackBundle(id)
+  const generated = await loadGeneratedPlaybackBundle(event, id)
   if (generated) {
     return generated
   }

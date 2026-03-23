@@ -53,6 +53,8 @@ export default defineNuxtConfig({
       'https://signalk-public.tideye.com',
     signalKWriteClientId: process.env.SIGNALK_WRITE_CLIENT_ID || 'tideye-switching-ui',
     signalKWriteToken: process.env.SIGNALK_WRITE_TOKEN || '',
+    /** Dev-only: local JSON playback bundles (see /api/passages/:id/playback) */
+    passageExportOutDir: process.env.PASSAGE_EXPORT_OUT_DIR || '',
     public: {
       appUrl: process.env.SITE_URL || 'https://tideye.nard.uk',
       appName: APP_NAME,

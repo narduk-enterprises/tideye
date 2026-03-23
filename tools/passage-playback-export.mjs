@@ -180,7 +180,11 @@ async function main() {
     const bundle = exportPassageBundle(i, coarse, appleResolver)
     const { _labelResolution, ...persistedBundle } = bundle
     const relPath = `passages/${persistedBundle.id}.json`
-    writeFileSync(join(OUTPUT_DIR, relPath), `${JSON.stringify(persistedBundle, null, 2)}\n`, 'utf8')
+    writeFileSync(
+      join(OUTPUT_DIR, relPath),
+      `${JSON.stringify(persistedBundle, null, 2)}\n`,
+      'utf8',
+    )
     manifestRows.push({
       id: persistedBundle.id,
       title: persistedBundle.title,
@@ -345,7 +349,8 @@ function buildEndpointClusters(manifestRows) {
 
   for (const cluster of clusters) {
     cluster.label = pickClusterLabel(cluster.seedLabels)
-    cluster.needsRefine = cluster.needsRefine || !cluster.label || isSuspiciousContextualLabel(cluster.label)
+    cluster.needsRefine =
+      cluster.needsRefine || !cluster.label || isSuspiciousContextualLabel(cluster.label)
     cluster.reverseSummaries = Array.from(cluster.reverseSummaries)
   }
 
@@ -530,7 +535,8 @@ function collectClusterRouteContext(cluster, clusters, manifestRows) {
       member.side === 'start'
         ? member.row.endPlaceLabel || null
         : member.row.startPlaceLabel || null
-    const oppositeNeedsRefine = member.side === 'start' ? member.row._endNeedsRefine : member.row._startNeedsRefine
+    const oppositeNeedsRefine =
+      member.side === 'start' ? member.row._endNeedsRefine : member.row._startNeedsRefine
     if (oppositeLabel && !oppositeNeedsRefine && !isSuspiciousContextualLabel(oppositeLabel)) {
       oppositeLabels.add(oppositeLabel)
     }
@@ -561,7 +567,13 @@ function collectClusterRouteContext(cluster, clusters, manifestRows) {
   }
 
   for (const other of clusters) {
-    if (other === cluster || !other.label || other.needsRefine || isSuspiciousContextualLabel(other.label)) continue
+    if (
+      other === cluster ||
+      !other.label ||
+      other.needsRefine ||
+      isSuspiciousContextualLabel(other.label)
+    )
+      continue
     const distanceNm = haversineNm(cluster.lat, cluster.lon, other.lat, other.lon)
     if (distanceNm > LABEL_NEIGHBOR_MAX_NM) continue
     nearbyKnown.push({ label: other.label, distanceNm })
