@@ -4,6 +4,7 @@
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
+WEB_PORT="${NUXT_PORT:-3000}"
 
 pnpm run dev:kill
 
@@ -31,7 +32,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-pnpm exec wait-on -t 180000 -i 750 http://127.0.0.1:3000 http://127.0.0.1:3010
+pnpm exec wait-on -t 180000 -i 750 "http://127.0.0.1:${WEB_PORT}" http://127.0.0.1:3010
 
 tail -f /dev/null &
 HOLD_PID=$!

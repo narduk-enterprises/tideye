@@ -5,16 +5,24 @@ export interface OgPreviewItem {
 }
 
 export interface OgPreviewCategory {
-  title: string
+  title?: string
+  category?: string
   items: OgPreviewItem[]
 }
 
+export interface OgPreviewPayload {
+  sections: OgPreviewCategory[]
+}
+
+export type OgPreviewData = OgPreviewCategory[] | OgPreviewPayload
+
 /**
  * Hook to fetch OpenGraph image dashboard data.
- * Requires the host app to implement standard `/api/admin/og-image-data` returning `OgPreviewCategory[]`.
+ * Host apps may return either a flat `OgPreviewCategory[]` or an object with
+ * `{ sections: OgPreviewCategory[] }`.
  */
 export function useOgImageData() {
   return useAsyncData('layer-og-image-data', () =>
-    $fetch<OgPreviewCategory[]>('/api/admin/og-image-data'),
+    $fetch<OgPreviewData>('/api/admin/og-image-data'),
   )
 }
