@@ -16,6 +16,14 @@ export interface OgPreviewPayload {
 
 export type OgPreviewData = OgPreviewCategory[] | OgPreviewPayload
 
+export function normalizeOgPreviewSections(
+  data: OgPreviewData | null | undefined,
+): OgPreviewCategory[] {
+  if (data == null) return []
+  if (Array.isArray(data)) return data
+  return data.sections ?? []
+}
+
 /**
  * Hook to fetch OpenGraph image dashboard data.
  * Host apps may return either a flat `OgPreviewCategory[]` or an object with

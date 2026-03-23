@@ -1,9 +1,6 @@
 <script setup lang="ts">
 const { data: ogData, status: ogStatus, error: ogError } = useOgImageData()
-const ogSections = computed(() => {
-  const data = ogData.value
-  return Array.isArray(data) ? data : data?.sections ?? []
-})
+const ogSections = computed(() => normalizeOgPreviewSections(ogData.value))
 
 const toast = useToast()
 
