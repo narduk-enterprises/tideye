@@ -6,5 +6,7 @@ import type { OgPreviewData } from '../utils/ogPreview'
  * `{ sections: OgPreviewCategory[] }`.
  */
 export function useOgImageData() {
-  return useAsyncData('layer-og-image-data', () => $fetch<OgPreviewData>('/api/admin/og-image-data'))
+  return useAsyncData('layer-og-image-data', () =>
+    $fetch<OgPreviewData>('/api/admin/og-image-data'),
+  )
 }
