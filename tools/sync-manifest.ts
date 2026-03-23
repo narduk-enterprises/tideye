@@ -45,6 +45,7 @@ export const RECURSIVE_SYNC_DIRECTORIES = [
   '.agents/workflows',
   // ui-ux-pro-max payload lives under `.template-reference/ui-ux-pro-max/`.
   // Per-agent `*/skills` dirs are local symlinks to ~/.skills (see skills:link).
+  '.agents',
   '.agent',
   '.codex',
   '.github/prompts',
@@ -114,6 +115,8 @@ export const FLEET_ROOT_SCRIPT_PATCHES: Readonly<Record<string, string>> = {
 }
 
 export const FLEET_WEB_SCRIPT_PATCHES: Readonly<Record<string, string>> = {
+  predev: 'pnpm run db:ready',
+  dev: '(doppler run -- nuxt dev || nuxt dev)',
   lint: 'eslint . --max-warnings 0',
   quality: "echo 'Turbo dependsOn handles lint + typecheck + format:check'",
 }

@@ -19,6 +19,7 @@ declare module 'nuxt/schema' {
     appUrl: string
     appName: string
     appVersion: string
+    controlPlaneUrl: string
     posthogPublicKey: string
     posthogHost: string
     gaMeasurementId: string
@@ -42,9 +43,11 @@ declare global {
           appVersion: string
           buildVersion: string
           buildTime: string
+          localBuildTime?: string
         }
       | undefined
     __NARDUK_BUILD_LOGGED__?: string | undefined
+    __NARDUK_NATIVE_FETCH__?: typeof fetch
   }
 }
 
