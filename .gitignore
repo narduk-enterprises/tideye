@@ -56,3 +56,10 @@ lint-results.txt
 # Python cache (uipro skill)
 __pycache__/
 .dev.vars
+
+# User-global skills: per-agent symlinks to ~/.skills (pnpm run skills:link / sync-template)
+.skills
+.cursor/skills
+.codex/skills
+.agent/skills
+.github/skills
