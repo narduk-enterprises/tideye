@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 import NavigationClassic from './NavigationClassic.vue'
 
 const views = [NavigationClassic]

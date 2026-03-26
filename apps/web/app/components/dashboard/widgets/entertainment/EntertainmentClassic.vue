@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
 import { useSignalKData } from '~/composables/useSignalKData'
 import WidgetContainer from '../shared/WidgetContainer.vue'
 import { formatMediaTime } from '~/utils/timeFormatting'

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 // @ts-nocheck -- Ported from tideye-dashboard
-import { computed } from 'vue'
 import { useSignalKData } from '~/composables/useSignalKData'
 import type { Charger } from '~/types/signalk/charger'
 

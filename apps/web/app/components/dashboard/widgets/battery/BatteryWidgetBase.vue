@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import { useSignalKData } from '~/composables/useSignalKData'
 import { formatDuration } from '~/utils/timeFormatting'
 import WidgetContainer from '../shared/WidgetContainer.vue'

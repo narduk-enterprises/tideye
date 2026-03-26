@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useSignalK } from '~/composables/useSignalK'
 import type { SignalKDelta } from '~/types/signalk/signalk-types'
 

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useSignalK } from '~/composables/useSignalK'
 import { formatDuration } from '~/utils/timeFormatting'
-import { computed } from 'vue'
 
 const signalK = useSignalK()
 

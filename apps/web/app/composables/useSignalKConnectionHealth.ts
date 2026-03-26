@@ -1,4 +1,3 @@
-import { onBeforeUnmount, ref } from 'vue'
 import { useSignalK } from '~/composables/useSignalK'
 import { DELTA_STALE_MS } from '~/config/signalk'
 

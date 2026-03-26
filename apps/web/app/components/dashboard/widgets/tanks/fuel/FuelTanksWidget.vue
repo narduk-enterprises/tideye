@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { h } from 'vue'
 import WidgetViewSwitcher from '../../shared/WidgetViewSwitcher.vue'
 import TanksClassicView from '../shared/TanksClassicView.vue'
 import TanksBarsView from '../shared/TanksBarsView.vue'

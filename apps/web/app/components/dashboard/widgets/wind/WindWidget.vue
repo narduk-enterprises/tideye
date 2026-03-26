@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
 import WindClassic from './WindClassic.vue'
 
 const views = [WindClassic]

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 // @ts-nocheck -- Ported from tideye-dashboard
-import { ref, computed } from 'vue'
 import { useToggle } from '@vueuse/core'
 import type { View } from '~/composables/useViewManager'
 

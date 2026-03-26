@@ -1,4 +1,3 @@
-import { markRaw } from 'vue'
 import type { BaseWidget } from '~/types/widgets'
 
 // Import all widget components
