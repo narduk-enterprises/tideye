@@ -16,8 +16,11 @@ import { runCommand } from './command'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = path.resolve(__dirname, '..')
 
-// Construct the template name from parts so init.ts string replacement can never corrupt it.
+// Construct the template name from parts so string replacement can never corrupt it.
 const TEMPLATE_NAME = ['narduk', 'nuxt', 'template'].join('-')
+
+/** Wrangler KV placeholder shipped in template `apps/web/wrangler.json` (not valid for deploy). */
+const PLACEHOLDER_KV_NAMESPACE_ID = '00000000000000000000000000000000'
 
 // --- Helper Functions ---
 function checkCommand(
@@ -36,6 +39,20 @@ function checkCommand(
   }
 }
 
+async function getPrimaryWebDatabaseName(): Promise<string | null> {
+  try {
+    const webWranglerPath = path.join(ROOT_DIR, 'apps', 'web', 'wrangler.json')
+    const webWranglerContent = await fs.readFile(webWranglerPath, 'utf-8')
+    const webWrangler = JSON.parse(webWranglerContent) as {
+      d1_databases?: Array<{ database_name?: string }>
+    }
+
+    return webWrangler.d1_databases?.[0]?.database_name || null
+  } catch {
+    return null
+  }
+}
+
 async function main() {
   const packageJsonPath = path.join(ROOT_DIR, 'package.json')
   const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf-8'))
@@ -43,7 +60,9 @@ async function main() {
 
   let allGood = true
   if (!APP_NAME || APP_NAME.includes(TEMPLATE_NAME)) {
-    console.error(`  ❌ Project name is still '${APP_NAME}'. Has init been run?`)
+    console.error(
+      `  ❌ Project name is still '${APP_NAME}'. Has the project been provisioned or renamed?`,
+    )
     allGood = false
   }
 
@@ -111,6 +130,28 @@ async function main() {
             allGood = false
           }
         }
+
+        const isTemplateCheckout = APP_NAME.includes(TEMPLATE_NAME)
+        const kvList = parsedWrangler.kv_namespaces
+        if (!isTemplateCheckout && Array.isArray(kvList)) {
+          const kvBinding = kvList.find(
+            (n: { binding?: string }) => n && typeof n === 'object' && n.binding === 'KV',
+          ) as { id?: string; preview_id?: string } | undefined
+          if (kvBinding) {
+            const badKvId = (v: unknown) =>
+              typeof v !== 'string' ||
+              v.length === 0 ||
+              v === PLACEHOLDER_KV_NAMESPACE_ID
+            if (badKvId(kvBinding.id) || badKvId(kvBinding.preview_id)) {
+              console.error(
+                `  ❌ apps/${appDir}/wrangler.json — KV binding "KV" id/preview_id missing or template placeholder (control plane must hydrate).`,
+              )
+              allGood = false
+            } else {
+              console.log(`  ✅ apps/${appDir}/wrangler.json — KV id and preview_id set`)
+            }
+          }
+        }
         // Apps without d1_databases are valid (e.g. marketing, og-image) — skip silently
       } catch {
         // App doesn't have a wrangler.json — skip
@@ -150,6 +191,7 @@ async function main() {
         'CLOUDFLARE_ACCOUNT_ID',
         'APP_NAME',
         'SITE_URL',
+        'NUXT_SESSION_PASSWORD',
       ]
 
       const missing = requiredSecrets.filter((s) => !existing.has(s))
@@ -321,14 +363,16 @@ async function main() {
     const webPkgContent = await fs.readFile(webPkgPath, 'utf-8')
     const webPkg = JSON.parse(webPkgContent)
 
-    const requiredDeps = ['drizzle-orm', 'zod']
-    const requiredDevDeps = ['@cloudflare/workers-types', '@iconify-json/lucide']
+    const requiredDeps = ['drizzle-orm', 'zod', '@iconify-json/lucide']
+    const requiredDevDeps = ['@cloudflare/workers-types']
 
     for (const dep of requiredDeps) {
       if (webPkg.dependencies?.[dep]) {
         console.log(`  ✅ ${dep} in dependencies`)
       } else {
-        console.error(`  ❌ ${dep} missing from dependencies (typecheck will fail)`)
+        console.error(
+          `  ❌ ${dep} missing from dependencies (typecheck or Nuxt Icon SSR will fail)`,
+        )
         allGood = false
       }
     }
@@ -341,17 +385,43 @@ async function main() {
       }
     }
 
-    // Ensure db:migrate doesn't still reference the template database name
-    const migrateScript = webPkg.scripts?.['db:migrate'] || ''
-    if (migrateScript.includes(TEMPLATE_NAME)) {
+    const templateDatabaseName = `${TEMPLATE_NAME}-db`
+    const webDatabaseName = await getPrimaryWebDatabaseName()
+    if (!webDatabaseName) {
+      console.error('  ❌ Unable to resolve apps/web database_name from wrangler.json')
+      allGood = false
+    } else if (webDatabaseName === templateDatabaseName) {
       console.error(
-        `  ❌ db:migrate script still references '${TEMPLATE_NAME}' — run setup with --repair`,
+        `  ❌ apps/web/wrangler.json still references template database '${templateDatabaseName}' — run setup with --repair`,
       )
       allGood = false
-    } else if (migrateScript) {
-      console.log('  ✅ db:migrate script references correct database name')
+    } else {
+      console.log(`  ✅ apps/web/wrangler.json references app database (${webDatabaseName})`)
     }
 
+    for (const scriptName of ['db:migrate', 'db:seed', 'db:reset'] as const) {
+      const script = webPkg.scripts?.[scriptName] || ''
+      if (!script) {
+        console.error(`  ❌ ${scriptName} script missing from apps/web/package.json`)
+        allGood = false
+        continue
+      }
+
+      if (!webDatabaseName) continue
+
+      if (!script.includes(webDatabaseName)) {
+        const reason =
+          webDatabaseName !== templateDatabaseName && script.includes(templateDatabaseName)
+            ? `still references template database '${templateDatabaseName}'`
+            : `does not reference apps/web database '${webDatabaseName}'`
+        console.error(`  ❌ ${scriptName} ${reason} — run setup with --repair`)
+        allGood = false
+      } else {
+        console.log(`  ✅ ${scriptName} references apps/web database (${webDatabaseName})`)
+      }
+    }
+
+    const migrateScript = webPkg.scripts?.['db:migrate'] || ''
     if (!migrateScript.includes('@narduk-enterprises/narduk-nuxt-template-layer/drizzle')) {
       console.error('  ❌ db:migrate is missing the shared layer migration directory')
       allGood = false
@@ -398,7 +468,7 @@ async function main() {
     console.log('🎉 All infrastructure checks passed successfully! Your project is ready.')
   } else {
     console.error(
-      '⚠️ Some checks failed. Please review the errors above and fix the issues, or rerun init.',
+      '⚠️ Some checks failed. Please review the errors above and fix the issues, or re-run provisioning / fix config.',
     )
     process.exit(1)
   }

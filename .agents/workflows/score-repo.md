@@ -71,8 +71,9 @@ Audit GitHub Actions workflows for correctness and completeness.
 1. **Workflow inventory** // turbo
    - Run `ls .github/workflows/`
    - Expect `ci.yml` everywhere; the template repo also carries
-     `weekly-drift-check.yml`, `provision-app.yml`, and reusable workflow files.
-     Derived apps may intentionally trim that set.
+     `weekly-drift-check.yml` and reusable workflow files. Provisioning runs
+     only from the control-plane repo (`provision-app.yml` lives there, not in
+     the template). Derived apps may intentionally trim that set.
 
 2. **CI (pull requests)**
    - Must run: `pnpm install --frozen-lockfile`, lint, typecheck
@@ -215,11 +216,11 @@ off, no security plugin, no prelint auto-build.
 
 Audit developer experience infrastructure.
 
-1. **Init script** // turbo
-   - Run `wc -l tools/init.ts`
-   - Must be idempotent (check for --repair mode)
-   - Must wire D1 and Doppler, handle GitHub secret fallback, and document
-     control-plane-managed analytics follow-up
+1. **Provisioning** // turbo
+   - No monolithic `tools/init.ts` — new apps use the control plane +
+     `provision-app.yml` on the control-plane repo (`tools/provision/*.ts`,
+     `5-hydrate-repo.ts`)
+   - Docs must state control plane as the only provisioning path
 
 2. **Validate script**
    - `tools/validate.ts` must exist

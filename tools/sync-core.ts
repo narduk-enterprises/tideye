@@ -1,4 +1,5 @@
 import {
+  chmodSync,
   copyFileSync,
   existsSync,
   lstatSync,
@@ -12,13 +13,13 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { basename, dirname, join, relative } from 'node:path'
-import { ensureSkillsLinks } from './ensure-skills-links'
 import { runCommand } from './command'
 import {
   BOOTSTRAP_SYNC_FILES,
   FLEET_ROOT_SCRIPT_PATCHES,
   FLEET_WEB_SCRIPT_PATCHES,
   GENERATED_SYNC_FILES,
+  REFERENCE_BASELINE_FILES,
   RECURSIVE_SYNC_DIRECTORIES,
   STALE_SYNC_PATHS,
   VERBATIM_SYNC_FILES,
@@ -68,8 +69,36 @@ function getOutput(command: string, args: string[], cwd: string): string {
   }
 }
 
+function getTrackedTemplatePaths(templateDir: string): Set<string> | null {
+  try {
+    const output = runCommand('git', ['ls-files', '-z'], {
+      cwd: templateDir,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+
+    return new Set(
+      output
+        .split('\0')
+        .map((entry) => entry.trim())
+        .filter(Boolean),
+    )
+  } catch {
+    return null
+  }
+}
+
 function ensureDir(filePath: string) {
   mkdirSync(dirname(filePath), { recursive: true })
+}
+
+function pathOccupied(filePath: string): boolean {
+  try {
+    lstatSync(filePath)
+    return true
+  } catch {
+    return false
+  }
 }
 
 function filesIdentical(left: string, right: string): boolean {
@@ -90,6 +119,14 @@ function symlinkTargetsMatch(left: string, right: string): boolean {
   }
 }
 
+function fileModesMatch(sourcePath: string, targetPath: string): boolean {
+  try {
+    return statSync(sourcePath).mode === statSync(targetPath).mode
+  } catch {
+    return false
+  }
+}
+
 function syncFile(
   sourcePath: string,
   targetPath: string,
@@ -97,23 +134,26 @@ function syncFile(
   counters: SyncCounters,
   dryRun: boolean,
   log: (message: string) => void,
+  label = relative(templateDir, sourcePath),
 ) {
   if (!existsSync(sourcePath)) return
 
   const srcLstat = lstatSync(sourcePath)
   if (srcLstat.isSymbolicLink()) {
     const wantTarget = readlinkSync(sourcePath, 'utf8')
-    if (existsSync(targetPath) && symlinkTargetsMatch(sourcePath, targetPath)) {
+    const occupied = pathOccupied(targetPath)
+
+    if (occupied && symlinkTargetsMatch(sourcePath, targetPath)) {
       counters.skipped += 1
       return
     }
 
-    const action = existsSync(targetPath) ? 'UPDATE' : 'ADD'
-    log(`  ${action}: ${relative(templateDir, sourcePath)}`)
+    const action = occupied ? 'UPDATE' : 'ADD'
+    log(`  ${action}: ${label}`)
 
     if (!dryRun) {
       ensureDir(targetPath)
-      if (existsSync(targetPath)) {
+      if (occupied) {
         rmSync(targetPath, { recursive: true, force: true })
       }
       symlinkSync(wantTarget, targetPath)
@@ -123,20 +163,53 @@ function syncFile(
     return
   }
 
-  if (existsSync(targetPath) && filesIdentical(sourcePath, targetPath)) {
+  if (
+    existsSync(targetPath) &&
+    filesIdentical(sourcePath, targetPath) &&
+    fileModesMatch(sourcePath, targetPath)
+  ) {
     counters.skipped += 1
     return
   }
 
   const action = existsSync(targetPath) ? 'UPDATE' : 'ADD'
-  log(`  ${action}: ${relative(templateDir, sourcePath)}`)
+  log(`  ${action}: ${label}`)
 
   if (!dryRun) {
     ensureDir(targetPath)
     copyFileSync(sourcePath, targetPath)
+    chmodSync(targetPath, srcLstat.mode)
   }
 
   counters.copied += 1
+}
+
+function collectTrackedPathsForDirectory(relativeDir: string, trackedPaths: Set<string>): string[] {
+  const prefix = `${relativeDir}/`
+
+  return [...trackedPaths].filter((path) => path.startsWith(prefix)).sort()
+}
+
+function syncTrackedDirectory(
+  relativeDir: string,
+  templateDir: string,
+  appDir: string,
+  trackedPaths: Set<string>,
+  counters: SyncCounters,
+  dryRun: boolean,
+  log: (message: string) => void,
+) {
+  for (const relativePath of collectTrackedPathsForDirectory(relativeDir, trackedPaths)) {
+    syncFile(
+      join(templateDir, relativePath),
+      join(appDir, relativePath),
+      templateDir,
+      counters,
+      dryRun,
+      log,
+      relativePath,
+    )
+  }
 }
 
 function syncDirectoryRecursive(
@@ -153,17 +226,19 @@ function syncDirectoryRecursive(
 
   if (stat.isSymbolicLink()) {
     const wantTarget = readlinkSync(sourceRoot, 'utf8')
-    if (existsSync(targetRoot) && symlinkTargetsMatch(sourceRoot, targetRoot)) {
+    const occupied = pathOccupied(targetRoot)
+
+    if (occupied && symlinkTargetsMatch(sourceRoot, targetRoot)) {
       counters.skipped += 1
       return
     }
 
-    const action = existsSync(targetRoot) ? 'UPDATE' : 'ADD'
+    const action = occupied ? 'UPDATE' : 'ADD'
     log(`  ${action}: ${relative(templateDir, sourceRoot)}`)
 
     if (!dryRun) {
       ensureDir(targetRoot)
-      if (existsSync(targetRoot)) {
+      if (occupied) {
         rmSync(targetRoot, { recursive: true, force: true })
       }
       symlinkSync(wantTarget, targetRoot)
@@ -271,12 +346,20 @@ function syncManagedFiles(
   mode: 'full' | 'layer',
   log: (message: string) => void,
 ) {
+  const trackedPaths = getTrackedTemplatePaths(templateDir)
+
   if (mode === 'full') {
     log('Phase 1: Syncing managed template files...')
     for (const file of VERBATIM_SYNC_FILES) {
+      if (trackedPaths && !trackedPaths.has(file)) continue
+      syncFile(join(templateDir, file), join(appDir, file), templateDir, counters, dryRun, log)
+    }
+    for (const file of REFERENCE_BASELINE_FILES) {
+      if (trackedPaths && !trackedPaths.has(file)) continue
       syncFile(join(templateDir, file), join(appDir, file), templateDir, counters, dryRun, log)
     }
     for (const file of BOOTSTRAP_SYNC_FILES) {
+      if (trackedPaths && !trackedPaths.has(file)) continue
       const targetPath = join(appDir, file)
       if (existsSync(targetPath)) continue
       syncFile(join(templateDir, file), targetPath, templateDir, counters, dryRun, log)
@@ -288,6 +371,11 @@ function syncManagedFiles(
   const directories =
     mode === 'full' ? RECURSIVE_SYNC_DIRECTORIES : (['layers/narduk-nuxt-layer'] as const)
   for (const directory of directories) {
+    if (trackedPaths) {
+      syncTrackedDirectory(directory, templateDir, appDir, trackedPaths, counters, dryRun, log)
+      continue
+    }
+
     syncDirectoryRecursive(
       join(templateDir, directory),
       join(appDir, directory),
@@ -477,6 +565,48 @@ function patchRootPackage(
   return touched
 }
 
+/**
+ * `apps/web/wrangler.json` is not copied verbatim (would wipe D1 ids, routes,
+ * domains). When the layer expects Workers KV, merge a missing `KV` binding
+ * from the template so `nitro-cloudflare-dev` matches new layer routes.
+ */
+function mergeWebWranglerKvBinding(
+  appDir: string,
+  templateDir: string,
+  dryRun: boolean,
+  mode: 'full' | 'layer',
+  log: (message: string) => void,
+): void {
+  if (mode !== 'full') return
+
+  const templatePath = join(templateDir, 'apps/web/wrangler.json')
+  const appPath = join(appDir, 'apps/web/wrangler.json')
+  if (!existsSync(templatePath) || !existsSync(appPath)) return
+
+  const templateWrangler = JSON.parse(readFileSync(templatePath, 'utf-8')) as {
+    kv_namespaces?: Array<{ binding?: string; id?: string; preview_id?: string }>
+  }
+  const templateKv = templateWrangler.kv_namespaces?.find((n) => n?.binding === 'KV')
+  if (!templateKv) return
+
+  const changed = patchJsonFile<Record<string, unknown>>(
+    appPath,
+    (w) => {
+      const list = (w.kv_namespaces as Array<{ binding?: string }> | undefined) ?? []
+      if (list.some((n) => n?.binding === 'KV')) {
+        return false
+      }
+      w.kv_namespaces = [...list, JSON.parse(JSON.stringify(templateKv)) as Record<string, unknown>]
+      return true
+    },
+    dryRun,
+  )
+
+  if (changed) {
+    log('  UPDATE: apps/web/wrangler.json (merged KV binding from template)')
+  }
+}
+
 function patchWebPackage(
   appDir: string,
   templateDir: string,
@@ -524,6 +654,7 @@ function patchWebPackage(
           const layerDrizzleDir =
             'node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle'
           const expectedMigrate = `bash ../../tools/db-migrate.sh ${databaseName} --local --dir ${layerDrizzleDir} --dir drizzle`
+          const expectedSeed = `wrangler d1 execute ${databaseName} --local --file=node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle/seed.sql`
           const expectedReset = `bash ../../tools/db-migrate.sh ${databaseName} --local --dir ${layerDrizzleDir} --dir drizzle --reset && pnpm run db:seed`
           const expectedReady = 'pnpm run db:migrate && pnpm run db:seed'
           const expectedVerify =
@@ -533,6 +664,11 @@ function patchWebPackage(
 
           if (pkg.scripts['db:migrate'] !== expectedMigrate) {
             pkg.scripts['db:migrate'] = expectedMigrate
+            changed = true
+          }
+
+          if (pkg.scripts['db:seed'] !== expectedSeed) {
+            pkg.scripts['db:seed'] = expectedSeed
             changed = true
           }
 
@@ -566,8 +702,16 @@ function patchWebPackage(
       if (mode === 'full') {
         pkg.dependencies = pkg.dependencies || {}
         pkg.devDependencies = pkg.devDependencies || {}
+        const eslintPkgPath = join(templateDir, 'packages/eslint-config/package.json')
         const templateEslintVersion =
-          templateWebPackage.dependencies?.['@narduk-enterprises/eslint-config']
+          templateWebPackage.dependencies?.['@narduk-enterprises/eslint-config'] ??
+          (existsSync(eslintPkgPath)
+            ? (
+                JSON.parse(readFileSync(eslintPkgPath, 'utf-8')) as {
+                  dependencies?: Record<string, string>
+                }
+              ).dependencies?.['@narduk-enterprises/eslint-config']
+            : undefined)
         const templateDevEslintVersion = templateWebPackage.devDependencies?.eslint
         if (pkg.dependencies['@narduk/eslint-config']) {
           delete pkg.dependencies['@narduk/eslint-config']
@@ -622,32 +766,6 @@ function patchGitignore(appDir: string, dryRun: boolean, log: (message: string) 
       }
       content += `${entry}\n`
     }
-  }
-
-  for (const legacy of [
-    '# User-global skills: per-agent symlinks to ~/.skills (pnpm run skills:link / sync-template)',
-    '.cursor/skills',
-    '.codex/skills',
-    '.agent/skills',
-    '.github/skills',
-    '.claude/skills',
-    '.cursor/skills/home',
-    '.codex/skills/home',
-    '.agent/skills/home',
-    '.github/skills/home',
-    '.claude/skills/home',
-  ]) {
-    content = content.replace(new RegExp(`^${legacy.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n`, 'gm'), '')
-  }
-
-  const skillsMarker = '# Legacy local skills scratch dir'
-  if (!content.includes('\n.skills\n') && !content.endsWith('\n.skills')) {
-    if (!content.endsWith('\n')) {
-      content += '\n'
-    }
-    content += `\n${skillsMarker}\n.skills\n`
-  } else if (!content.includes(skillsMarker)) {
-    content = content.replace(/\n\.skills\n/g, `\n${skillsMarker}\n.skills\n`)
   }
 
   if (content === original) return false
@@ -732,42 +850,20 @@ function patchNpmrc(appDir: string, dryRun: boolean, log: (message: string) => v
   return true
 }
 
-function ensureSetupComplete(
-  appDir: string,
-  dryRun: boolean,
-  log: (message: string) => void,
-): boolean {
-  const sentinelPath = join(appDir, '.setup-complete')
-  if (existsSync(sentinelPath)) return false
-
-  log('  ADD: .setup-complete')
-  if (!dryRun) {
-    writeFileSync(
-      sentinelPath,
-      `initialized=${new Date().toISOString()}\napp=${relative(dirname(appDir), appDir)}\nsource=sync-template\n`,
-      'utf-8',
-    )
+function warnIfBootstrapArtifactsMissing(appDir: string, log: (message: string) => void): void {
+  const missing: string[] = []
+  if (!existsSync(join(appDir, '.setup-complete'))) {
+    missing.push('.setup-complete')
   }
-  return true
-}
-
-function ensureDopplerYaml(
-  appDir: string,
-  dryRun: boolean,
-  log: (message: string) => void,
-): boolean {
-  const dopplerPath = join(appDir, 'doppler.yaml')
-  const repoName = appDir.split('/').pop() || 'unknown'
-  const expectedContent = `setup:\n  project: ${repoName}\n  config: prd\n`
-  const currentContent = existsSync(dopplerPath) ? readFileSync(dopplerPath, 'utf-8') : null
-
-  if (currentContent === expectedContent) return false
-
-  log(`  ${currentContent === null ? 'ADD' : 'UPDATE'}: doppler.yaml`)
-  if (!dryRun) {
-    writeFileSync(dopplerPath, expectedContent, 'utf-8')
+  if (!existsSync(join(appDir, 'doppler.yaml'))) {
+    missing.push('doppler.yaml')
   }
-  return true
+  if (missing.length === 0) return
+
+  log(`  WARN: bootstrap-managed files missing (${missing.join(', ')})`)
+  log(
+    '        Sync will not recreate provisioning artifacts; repair them via provisioning or an explicit ops flow.',
+  )
 }
 
 function rewriteLayerRepository(
@@ -904,19 +1000,13 @@ export async function runAppSync(options: RunAppSyncOptions) {
 
   const packageTouched = patchRootPackage(options.appDir, options.templateDir, dryRun, mode, log)
   patchWebPackage(options.appDir, options.templateDir, dryRun, mode, log)
+  mergeWebWranglerKvBinding(options.appDir, options.templateDir, dryRun, mode, log)
   if (mode === 'full') {
     patchGitignore(options.appDir, dryRun, log)
     patchNpmrc(options.appDir, dryRun, log)
-    ensureSetupComplete(options.appDir, dryRun, log)
-    ensureDopplerYaml(options.appDir, dryRun, log)
+    warnIfBootstrapArtifactsMissing(options.appDir, log)
     ensureGitHooksPath(options.appDir, dryRun, log)
   }
-
-  log('')
-  log(
-    '  Skills: repairing .agent/.cursor/.codex/.claude/.github symlinks → .agents/skills...',
-  )
-  ensureSkillsLinks(options.appDir, { dryRun, log })
 
   // Record template HEAD for drift checks and fleet audit — must run for layer-only
   // sync too, otherwise check-drift-ci keeps comparing against a stale SHA.
