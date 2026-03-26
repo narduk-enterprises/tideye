@@ -1,7 +1,6 @@
 # Dashboard Layout
 
-Build admin interfaces with resizable sidebars, multi-panel layouts, and
-toolbars.
+Build admin interfaces with resizable sidebars, multi-panel layouts, and toolbars.
 
 ## Component tree
 
@@ -26,28 +25,23 @@ UApp
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
 
-const items = computed<NavigationMenuItem[]>(() => [
-  {
-    label: 'Home',
-    icon: 'i-lucide-house',
-    to: '/dashboard',
-  },
-  {
-    label: 'Inbox',
-    icon: 'i-lucide-inbox',
-    to: '/dashboard/inbox',
-  },
-  {
-    label: 'Users',
-    icon: 'i-lucide-users',
-    to: '/dashboard/users',
-  },
-  {
-    label: 'Settings',
-    icon: 'i-lucide-settings',
-    to: '/dashboard/settings',
-  },
-])
+const items = computed<NavigationMenuItem[]>(() => [{
+  label: 'Home',
+  icon: 'i-lucide-house',
+  to: '/dashboard'
+}, {
+  label: 'Inbox',
+  icon: 'i-lucide-inbox',
+  to: '/dashboard/inbox'
+}, {
+  label: 'Users',
+  icon: 'i-lucide-users',
+  to: '/dashboard/users'
+}, {
+  label: 'Settings',
+  icon: 'i-lucide-settings',
+  to: '/dashboard/settings'
+}])
 </script>
 
 <template>
@@ -111,40 +105,37 @@ definePageMeta({ layout: 'dashboard' })
 
 Root layout wrapper. Manages sidebar state and persistence.
 
-| Prop          | Default         | Description                                              |
-| ------------- | --------------- | -------------------------------------------------------- |
-| `storage`     | `'cookie'`      | State persistence: `'cookie'`, `'localStorage'`, `false` |
-| `storage-key` | `'dashboard'`   | Storage key name                                         |
-| `unit`        | `'percentages'` | Size unit: `'percentages'` or `'pixels'`                 |
+| Prop | Default | Description |
+|---|---|---|
+| `storage` | `'cookie'` | State persistence: `'cookie'`, `'localStorage'`, `false` |
+| `storage-key` | `'dashboard'` | Storage key name |
+| `unit` | `'percentages'` | Size unit: `'percentages'` or `'pixels'` |
 
 ### DashboardSidebar
 
 Resizable, collapsible sidebar. Must be inside `DashboardGroup`.
 
-| Prop          | Default       | Description                                            |
-| ------------- | ------------- | ------------------------------------------------------ |
-| `resizable`   | `false`       | Enable resize by dragging                              |
-| `collapsible` | `false`       | Enable collapse when dragged to edge                   |
-| `side`        | `'left'`      | `'left'` or `'right'`                                  |
-| `mode`        | `'slideover'` | Mobile menu mode: `'modal'`, `'slideover'`, `'drawer'` |
+| Prop | Default | Description |
+|---|---|---|
+| `resizable` | `false` | Enable resize by dragging |
+| `collapsible` | `false` | Enable collapse when dragged to edge |
+| `side` | `'left'` | `'left'` or `'right'` |
+| `mode` | `'slideover'` | Mobile menu mode: `'modal'`, `'slideover'`, `'drawer'` |
 
-Slots receive `{ collapsed }` prop. Control state: `v-model:collapsed`,
-`v-model:open` (mobile).
+Slots receive `{ collapsed }` prop. Control state: `v-model:collapsed`, `v-model:open` (mobile).
 
 ### DashboardPanel
 
-Content panel with `#header`, `#body` (scrollable), `#footer`, and `#default`
-(raw) slots.
+Content panel with `#header`, `#body` (scrollable), `#footer`, and `#default` (raw) slots.
 
-| Prop        | Default | Description                          |
-| ----------- | ------- | ------------------------------------ |
-| `id`        | `—`     | Unique ID (required for multi-panel) |
-| `resizable` | `false` | Enable resize by dragging            |
+| Prop | Default | Description |
+|---|---|---|
+| `id` | `—` | Unique ID (required for multi-panel) |
+| `resizable` | `false` | Enable resize by dragging |
 
 ### DashboardNavbar / DashboardToolbar
 
-Navbar has `#left`, `#default`, `#right` slots and a `title` prop. Toolbar has
-the same slots for filters/actions below the navbar.
+Navbar has `#left`, `#default`, `#right` slots and a `title` prop. Toolbar has the same slots for filters/actions below the navbar.
 
 ## Multi-panel (list-detail)
 

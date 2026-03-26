@@ -8,7 +8,6 @@
 
 # Node dependencies
 node_modules
-package-lock.json
 
 # Logs
 logs
@@ -22,6 +21,7 @@ logs
 # Local env files — use Doppler, not .env files
 .env
 .env.*
+.dev.vars
 
 # Cloudflare
 .wrangler/
@@ -35,11 +35,7 @@ logs
 # Test artifacts
 playwright-report/
 test-results/
-# Ad hoc Playwright screenshots / local debug output
-output/
-
-# Generated tool output (passage-playback export, import-local-d1.sql, etc.)
-tools/.generated/
+.playwright-mcp/
 
 # ESLint plugin build artifacts (rebuilt via `pnpm run build:plugins`)
 packages/eslint-config/*/dist/
@@ -55,11 +51,10 @@ lint-results.txt
 
 # Python cache (uipro skill)
 __pycache__/
-.dev.vars
+*.pyc
 
-# User-global skills: per-agent symlinks to ~/.skills (pnpm run skills:link / sync-template)
+# Legacy local skills scratch dir
 .skills
-.cursor/skills
-.codex/skills
-.agent/skills
-.github/skills
+
+# Local audit snapshots
+artifacts/

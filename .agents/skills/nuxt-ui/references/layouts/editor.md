@@ -1,7 +1,6 @@
 # Editor Layout
 
-Build a rich text editor with toolbars, slash commands, mentions, and
-drag-and-drop.
+Build a rich text editor with toolbars, slash commands, mentions, and drag-and-drop.
 
 ## Component tree
 
@@ -30,13 +29,13 @@ const content = ref({
     {
       type: 'heading',
       attrs: { level: 1 },
-      content: [{ type: 'text', text: 'Hello World' }],
+      content: [{ type: 'text', text: 'Hello World' }]
     },
     {
       type: 'paragraph',
-      content: [{ type: 'text', text: 'Start writing...' }],
-    },
-  ],
+      content: [{ type: 'text', text: 'Start writing...' }]
+    }
+  ]
 })
 </script>
 
@@ -55,14 +54,8 @@ const content = ref({
         <UEditorMentionMenu
           :editor="editor"
           :items="[
-            {
-              label: 'Benjamin',
-              avatar: { src: 'https://github.com/benjamincanac.png' },
-            },
-            {
-              label: 'Sébastien',
-              avatar: { src: 'https://github.com/atinux.png' },
-            },
+            { label: 'Benjamin', avatar: { src: 'https://github.com/benjamincanac.png' } },
+            { label: 'Sébastien', avatar: { src: 'https://github.com/atinux.png' } }
           ]"
         />
         <UEditorEmojiMenu :editor="editor" />
@@ -73,15 +66,12 @@ const content = ref({
 </template>
 ```
 
-> If you encounter prosemirror-related errors, add prosemirror packages to
-> `vite.optimizeDeps.include` in `nuxt.config.ts`.
+> If you encounter prosemirror-related errors, add prosemirror packages to `vite.optimizeDeps.include` in `nuxt.config.ts`.
 
 ## Key components
 
-- `UEditor` — Rich text editor (`v-model` accepts JSON, HTML, or markdown via
-  `content-type` prop)
-- `UEditorToolbar` — Toolbar with `layout`: `'fixed'` (default), `'bubble'` (on
-  selection), `'floating'` (on empty lines)
+- `UEditor` — Rich text editor (`v-model` accepts JSON, HTML, or markdown via `content-type` prop)
+- `UEditorToolbar` — Toolbar with `layout`: `'fixed'` (default), `'bubble'` (on selection), `'floating'` (on empty lines)
 - `UEditorDragHandle` — Block drag-and-drop handle
 - `UEditorSuggestionMenu` — Slash command menu
 - `UEditorMentionMenu` — @ mention menu
@@ -133,13 +123,11 @@ Combine with Dashboard components for a multi-document editor with a sidebar.
 
       <template #default>
         <UNavigationMenu
-          :items="
-            documents.map((doc) => ({
-              label: doc.title,
-              to: `/editor/${doc.id}`,
-              icon: 'i-lucide-file-text',
-            }))
-          "
+          :items="documents.map(doc => ({
+            label: doc.title,
+            to: `/editor/${doc.id}`,
+            icon: 'i-lucide-file-text'
+          }))"
           orientation="vertical"
         />
       </template>

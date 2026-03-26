@@ -1,7 +1,6 @@
 # Docs Layout
 
-Build documentation sites with sidebar navigation, table of contents, and
-surround links.
+Build documentation sites with sidebar navigation, table of contents, and surround links.
 
 > Requires `@nuxt/content` module for navigation, search, and TOC.
 
@@ -29,19 +28,15 @@ import type { NavigationMenuItem } from '@nuxt/ui'
 
 const route = useRoute()
 
-const { data: navigation } = await useAsyncData('navigation', () =>
-  queryCollectionNavigation('docs'),
-)
+const { data: navigation } = await useAsyncData('navigation', () => queryCollectionNavigation('docs'))
 
 provide('navigation', navigation)
 
-const items = computed<NavigationMenuItem[]>(() => [
-  {
-    label: 'Docs',
-    to: '/docs/getting-started',
-    active: route.path.startsWith('/docs'),
-  },
-])
+const items = computed<NavigationMenuItem[]>(() => [{
+  label: 'Docs',
+  to: '/docs/getting-started',
+  active: route.path.startsWith('/docs')
+}])
 </script>
 
 <template>
@@ -130,8 +125,7 @@ const { data: surround } = await useAsyncData(`${route.path}-surround`, () => {
 </template>
 ```
 
-> The outer `UPage` in the layout handles the left sidebar. The inner `UPage` in
-> the page handles the right sidebar. They nest correctly.
+> The outer `UPage` in the layout handles the left sidebar. The inner `UPage` in the page handles the right sidebar. They nest correctly.
 
 ## Key components
 

@@ -2,15 +2,15 @@
 
 ## Semantic colors
 
-| Color       | Default | Purpose                     |
-| ----------- | ------- | --------------------------- |
-| `primary`   | green   | CTAs, active states, brand  |
-| `secondary` | blue    | Secondary actions           |
-| `success`   | green   | Success messages            |
-| `info`      | blue    | Informational               |
-| `warning`   | yellow  | Warnings                    |
-| `error`     | red     | Errors, destructive actions |
-| `neutral`   | slate   | Text, borders, disabled     |
+| Color | Default | Purpose |
+|---|---|---|
+| `primary` | green | CTAs, active states, brand |
+| `secondary` | blue | Secondary actions |
+| `success` | green | Success messages |
+| `info` | blue | Informational |
+| `warning` | yellow | Warnings |
+| `error` | red | Errors, destructive actions |
+| `neutral` | slate | Text, borders, disabled |
 
 ## Configuring colors
 
@@ -23,9 +23,9 @@ export default defineAppConfig({
       secondary: 'violet',
       success: 'emerald',
       error: 'rose',
-      neutral: 'zinc',
-    },
-  },
+      neutral: 'zinc'
+    }
+  }
 })
 ```
 
@@ -33,14 +33,12 @@ export default defineAppConfig({
 // Vue — vite.config.ts
 ui({
   ui: {
-    colors: { primary: 'indigo', secondary: 'violet', neutral: 'zinc' },
-  },
+    colors: { primary: 'indigo', secondary: 'violet', neutral: 'zinc' }
+  }
 })
 ```
 
-You can only use colors that exist in your theme — either
-[Tailwind's default colors](https://tailwindcss.com/docs/colors) or custom
-colors defined with `@theme`.
+You can only use colors that exist in your theme — either [Tailwind's default colors](https://tailwindcss.com/docs/colors) or custom colors defined with `@theme`.
 
 ## Adding custom colors
 
@@ -65,30 +63,20 @@ colors defined with `@theme`.
 
 2. Assign it as a semantic color value: `ui: { colors: { primary: 'brand' } }`
 
-You can only use colors that have all shades defined — either from Tailwind's
-defaults or custom `@theme` definitions.
+You can only use colors that have all shades defined — either from Tailwind's defaults or custom `@theme` definitions.
 
 ### Extending with new semantic color names
 
-If you need a new semantic color beyond the defaults (e.g., `tertiary`),
-register it in `theme.colors`:
+If you need a new semantic color beyond the defaults (e.g., `tertiary`), register it in `theme.colors`:
 
 ```ts
 // Nuxt — nuxt.config.ts
 export default defineNuxtConfig({
   ui: {
     theme: {
-      colors: [
-        'primary',
-        'secondary',
-        'tertiary',
-        'info',
-        'success',
-        'warning',
-        'error',
-      ],
-    },
-  },
+      colors: ['primary', 'secondary', 'tertiary', 'info', 'success', 'warning', 'error']
+    }
+  }
 })
 ```
 
@@ -96,74 +84,56 @@ export default defineNuxtConfig({
 // Vue — vite.config.ts
 ui({
   theme: {
-    colors: [
-      'primary',
-      'secondary',
-      'tertiary',
-      'info',
-      'success',
-      'warning',
-      'error',
-    ],
-  },
+    colors: ['primary', 'secondary', 'tertiary', 'info', 'success', 'warning', 'error']
+  }
 })
 ```
 
-Then assign it: `ui: { colors: { tertiary: 'indigo' } }` and use it via the
-`color` prop: `<UButton color="tertiary">`.
+Then assign it: `ui: { colors: { tertiary: 'indigo' } }` and use it via the `color` prop: `<UButton color="tertiary">`.
 
 ## CSS utilities
 
 ### Text
 
-| Class              | Use                       | Light value   | Dark value    |
-| ------------------ | ------------------------- | ------------- | ------------- |
-| `text-default`     | Body text                 | `neutral-700` | `neutral-200` |
-| `text-muted`       | Secondary text            | `neutral-500` | `neutral-400` |
-| `text-dimmed`      | Placeholders, hints       | `neutral-400` | `neutral-500` |
-| `text-toned`       | Subtitles                 | `neutral-600` | `neutral-300` |
-| `text-highlighted` | Headings, emphasis        | `neutral-900` | `white`       |
-| `text-inverted`    | On dark/light backgrounds | `white`       | `neutral-900` |
+| Class | Use | Light value | Dark value |
+|---|---|---|---|
+| `text-default` | Body text | `neutral-700` | `neutral-200` |
+| `text-muted` | Secondary text | `neutral-500` | `neutral-400` |
+| `text-dimmed` | Placeholders, hints | `neutral-400` | `neutral-500` |
+| `text-toned` | Subtitles | `neutral-600` | `neutral-300` |
+| `text-highlighted` | Headings, emphasis | `neutral-900` | `white` |
+| `text-inverted` | On dark/light backgrounds | `white` | `neutral-900` |
 
 ### Background
 
-| Class         | Use               | Light value   | Dark value    |
-| ------------- | ----------------- | ------------- | ------------- |
-| `bg-default`  | Page background   | `white`       | `neutral-900` |
-| `bg-muted`    | Subtle sections   | `neutral-50`  | `neutral-800` |
-| `bg-elevated` | Cards, modals     | `neutral-100` | `neutral-800` |
-| `bg-accented` | Hover states      | `neutral-200` | `neutral-700` |
-| `bg-inverted` | Inverted sections | `neutral-900` | `white`       |
+| Class | Use | Light value | Dark value |
+|---|---|---|---|
+| `bg-default` | Page background | `white` | `neutral-900` |
+| `bg-muted` | Subtle sections | `neutral-50` | `neutral-800` |
+| `bg-elevated` | Cards, modals | `neutral-100` | `neutral-800` |
+| `bg-accented` | Hover states | `neutral-200` | `neutral-700` |
+| `bg-inverted` | Inverted sections | `neutral-900` | `white` |
 
 ### Border
 
-| Class             | Use                | Light value   | Dark value    |
-| ----------------- | ------------------ | ------------- | ------------- |
-| `border-default`  | Default borders    | `neutral-200` | `neutral-800` |
-| `border-muted`    | Subtle borders     | `neutral-200` | `neutral-700` |
+| Class | Use | Light value | Dark value |
+|---|---|---|---|
+| `border-default` | Default borders | `neutral-200` | `neutral-800` |
+| `border-muted` | Subtle borders | `neutral-200` | `neutral-700` |
 | `border-accented` | Emphasized borders | `neutral-300` | `neutral-700` |
-| `border-inverted` | Inverted borders   | `neutral-900` | `white`       |
+| `border-inverted` | Inverted borders | `neutral-900` | `white` |
 
 ### Semantic color utilities
 
-Each semantic color (`primary`, `secondary`, `success`, `info`, `warning`,
-`error`) is available as a Tailwind utility: `text-primary`, `bg-primary`,
-`border-primary`, `ring-primary`, etc.
+Each semantic color (`primary`, `secondary`, `success`, `info`, `warning`, `error`) is available as a Tailwind utility: `text-primary`, `bg-primary`, `border-primary`, `ring-primary`, etc.
 
-They resolve to shade **500** in light mode and shade **400** in dark mode (via
-`--ui-<color>` CSS variables). This is generated at runtime by the colors plugin
-— you don't need to write dark-mode variants manually.
+They resolve to shade **500** in light mode and shade **400** in dark mode (via `--ui-<color>` CSS variables). This is generated at runtime by the colors plugin — you don't need to write dark-mode variants manually.
 
-To adjust which shade is used, override `--ui-primary` (or any semantic color)
-in your `main.css`:
+To adjust which shade is used, override `--ui-primary` (or any semantic color) in your `main.css`:
 
 ```css
-:root {
-  --ui-primary: var(--ui-color-primary-600);
-}
-.dark {
-  --ui-primary: var(--ui-color-primary-300);
-}
+:root { --ui-primary: var(--ui-color-primary-600); }
+.dark { --ui-primary: var(--ui-color-primary-300); }
 ```
 
 ### CSS variables
@@ -172,9 +142,9 @@ All customizable in `main.css`:
 
 ```css
 :root {
-  --ui-radius: 0.25rem; /* base radius for all components */
-  --ui-container: 80rem; /* UContainer max-width */
-  --ui-header-height: 4rem; /* UHeader height */
+  --ui-radius: 0.25rem;               /* base radius for all components */
+  --ui-container: 80rem;              /* UContainer max-width */
+  --ui-header-height: 4rem;            /* UHeader height */
   --ui-primary: var(--ui-color-primary-500); /* adjust shade used */
 }
 
@@ -186,46 +156,32 @@ All customizable in `main.css`:
 ### Solid colors (black/white)
 
 ```css
-:root {
-  --ui-primary: black;
-}
-.dark {
-  --ui-primary: white;
-}
+:root { --ui-primary: black; }
+.dark { --ui-primary: white; }
 ```
 
 ## Component theme customization
 
 ### How it works
 
-Components are styled with
-[Tailwind Variants](https://www.tailwind-variants.org/). The theme defines:
+Components are styled with [Tailwind Variants](https://www.tailwind-variants.org/). The theme defines:
 
-- **`slots`** — named style targets (e.g., `root`, `base`, `label`,
-  `leadingIcon`)
-- **`variants`** — styles applied based on props (e.g., `color`, `variant`,
-  `size`)
-- **`compoundVariants`** — styles for specific prop combinations (e.g.,
-  `color: 'primary'` + `variant: 'outline'`)
+- **`slots`** — named style targets (e.g., `root`, `base`, `label`, `leadingIcon`)
+- **`variants`** — styles applied based on props (e.g., `color`, `variant`, `size`)
+- **`compoundVariants`** — styles for specific prop combinations (e.g., `color: 'primary'` + `variant: 'outline'`)
 - **`defaultVariants`** — default prop values when none are specified
 
 ### Override priority
 
 **`ui` prop / `class` prop > global config > theme defaults**
 
-The `ui` prop overrides slots **after** variants are computed. If the
-`size: 'md'` variant applies `size-5` to `trailingIcon`, and you set
-`:ui="{ trailingIcon: 'size-3' }"`, the `size-3` wins.
+The `ui` prop overrides slots **after** variants are computed. If the `size: 'md'` variant applies `size-5` to `trailingIcon`, and you set `:ui="{ trailingIcon: 'size-3' }"`, the `size-3` wins.
 
-Tailwind Variants uses
-[tailwind-merge](https://github.com/dcastil/tailwind-merge) under the hood so
-conflicting classes are resolved automatically.
+Tailwind Variants uses [tailwind-merge](https://github.com/dcastil/tailwind-merge) under the hood so conflicting classes are resolved automatically.
 
 ### Understanding the generated theme
 
-Every component's full resolved theme is generated at build time. Always read
-this file before customizing a component — it shows exactly what classes are
-applied where.
+Every component's full resolved theme is generated at build time. Always read this file before customizing a component — it shows exactly what classes are applied where.
 
 - **Nuxt**: `.nuxt/ui/<component>.ts`
 - **Vue**: `node_modules/.nuxt-ui/ui/<component>.ts`
@@ -260,26 +216,24 @@ export default defineAppConfig({
   ui: {
     button: {
       slots: {
-        base: 'font-bold rounded-full',
+        base: 'font-bold rounded-full'
       },
       variants: {
         size: {
-          md: { leadingIcon: 'size-4' },
-        },
+          md: { leadingIcon: 'size-4' }
+        }
       },
-      compoundVariants: [
-        {
-          color: 'neutral',
-          variant: 'outline',
-          class: { base: 'ring-2' },
-        },
-      ],
-      defaultVariants: {
+      compoundVariants: [{
         color: 'neutral',
         variant: 'outline',
-      },
-    },
-  },
+        class: { base: 'ring-2' }
+      }],
+      defaultVariants: {
+        color: 'neutral',
+        variant: 'outline'
+      }
+    }
+  }
 })
 ```
 
@@ -289,9 +243,9 @@ ui({
   ui: {
     button: {
       slots: { base: 'font-bold rounded-full' },
-      defaultVariants: { color: 'neutral', variant: 'outline' },
-    },
-  },
+      defaultVariants: { color: 'neutral', variant: 'outline' }
+    }
+  }
 })
 ```
 
@@ -312,8 +266,7 @@ Overrides the `root` or `base` slot:
 <UButton class="rounded-none">Square</UButton>
 ```
 
-Components without slots (e.g., `UContainer`, `USkeleton`, `UMain`) only have
-the `class` prop.
+Components without slots (e.g., `UContainer`, `USkeleton`, `UMain`) only have the `class` prop.
 
 ### Theme structure patterns
 
@@ -353,10 +306,8 @@ colorMode.preference = 'dark' // 'light', 'dark', 'system'
 ```
 
 ```vue
-<UColorModeButton />
-<!-- Toggle -->
-<UColorModeSelect />
-<!-- Dropdown -->
+<UColorModeButton /> <!-- Toggle -->
+<UColorModeSelect /> <!-- Dropdown -->
 ```
 
 ## Fonts
@@ -369,13 +320,11 @@ colorMode.preference = 'dark' // 'light', 'dark', 'system'
 }
 ```
 
-In Nuxt, fonts defined with `@theme` are automatically loaded by the
-`@nuxt/fonts` module.
+In Nuxt, fonts defined with `@theme` are automatically loaded by the `@nuxt/fonts` module.
 
 ## Brand customization playbook
 
-Follow these steps to fully rebrand Nuxt UI (e.g., "make a Ghibli theme", "match
-our corporate brand"):
+Follow these steps to fully rebrand Nuxt UI (e.g., "make a Ghibli theme", "match our corporate brand"):
 
 ### Step 1 — Define the color palette
 
@@ -396,8 +345,7 @@ ui: {
 }
 ```
 
-If no Tailwind default color fits, define custom shades in CSS (see
-[Adding custom colors](#adding-custom-colors)):
+If no Tailwind default color fits, define custom shades in CSS (see [Adding custom colors](#adding-custom-colors)):
 
 ```css
 @theme static {
@@ -422,7 +370,7 @@ Then use it: `primary: 'forest'`.
 
 ```css
 :root {
-  --ui-radius: 0.75rem; /* rounder = softer/playful, smaller = sharper/corporate */
+  --ui-radius: 0.75rem;   /* rounder = softer/playful, smaller = sharper/corporate */
   --ui-primary: var(--ui-color-primary-600); /* adjust which shade is used */
 }
 
@@ -460,23 +408,20 @@ ui: {
 }
 ```
 
-> **Tip**: Read `.nuxt/ui/button.ts` (Nuxt) or
-> `node_modules/.nuxt-ui/ui/button.ts` (Vue) to see all available slots and
-> variants before overriding.
+> **Tip**: Read `.nuxt/ui/button.ts` (Nuxt) or `node_modules/.nuxt-ui/ui/button.ts` (Vue) to see all available slots and variants before overriding.
 
 ### Step 5 — Verify dark mode
 
-Check that both modes look correct. Adjust `--ui-primary` shade per mode and
-test contrast. Use `useColorMode()` to toggle during development.
+Check that both modes look correct. Adjust `--ui-primary` shade per mode and test contrast. Use `useColorMode()` to toggle during development.
 
 ### Quick checklist
 
-| Step             | What to change                    | Where                              |
-| ---------------- | --------------------------------- | ---------------------------------- |
-| Colors           | `primary`, `secondary`, `neutral` | `app.config.ts` / `vite.config.ts` |
-| Custom palette   | 11 shades per color               | `main.css` (`@theme static`)       |
-| Fonts            | `--font-sans`, `--font-mono`      | `main.css` (`@theme`)              |
-| Radius           | `--ui-radius`                     | `main.css` (`:root`)               |
-| Primary shade    | `--ui-primary`                    | `main.css` (`:root` + `.dark`)     |
-| Component shapes | Global slot overrides             | `app.config.ts` / `vite.config.ts` |
-| Dark mode        | Verify contrast, adjust variables | `main.css` (`.dark`)               |
+| Step | What to change | Where |
+|---|---|---|
+| Colors | `primary`, `secondary`, `neutral` | `app.config.ts` / `vite.config.ts` |
+| Custom palette | 11 shades per color | `main.css` (`@theme static`) |
+| Fonts | `--font-sans`, `--font-mono` | `main.css` (`@theme`) |
+| Radius | `--ui-radius` | `main.css` (`:root`) |
+| Primary shade | `--ui-primary` | `main.css` (`:root` + `.dark`) |
+| Component shapes | Global slot overrides | `app.config.ts` / `vite.config.ts` |
+| Dark mode | Verify contrast, adjust variables | `main.css` (`.dark`) |
