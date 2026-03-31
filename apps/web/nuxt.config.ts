@@ -102,6 +102,22 @@ export default defineNuxtConfig({
     /** Dev-only: local JSON playback bundles (see /api/passages/:id/playback) */
     passageExportOutDir: process.env.PASSAGE_EXPORT_OUT_DIR || '',
     public: {
+      appBackendPreset,
+      authBackend,
+      authAuthorityUrl,
+      authLoginPath: '/login',
+      authRegisterPath: '/register',
+      authCallbackPath: '/auth/callback',
+      authConfirmPath: '/auth/confirm',
+      authResetPath: '/reset-password',
+      authLogoutPath: '/logout',
+      authRedirectPath: '/dashboard/',
+      authProviders,
+      authPublicSignup: process.env.AUTH_PUBLIC_SIGNUP !== 'false',
+      authRequireMfa: process.env.AUTH_REQUIRE_MFA === 'true',
+      authTurnstileSiteKey: process.env.TURNSTILE_SITE_KEY || '',
+      supabaseUrl,
+      supabasePublishableKey,
       appUrl: process.env.SITE_URL || 'https://tideye.nard.uk',
       appName: APP_NAME,
       // Analytics (client-side tracking)
