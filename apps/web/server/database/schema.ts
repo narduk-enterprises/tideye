@@ -8,6 +8,7 @@
 import { sqliteTable, text, real, integer, primaryKey } from 'drizzle-orm/sqlite-core'
 
 export * from '#layer/server/database/schema'
+export * from '#server/database/auth-bridge-schema'
 
 export const passages = sqliteTable('passages', {
   id: text('id').primaryKey(),

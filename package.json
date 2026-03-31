@@ -36,7 +36,8 @@
     "guardrails:repo": "pnpm exec tsx tools/check-guardrails.ts",
     "quality:check": "pnpm run guardrails:repo && turbo run quality --filter='./apps/*'",
     "skills:link": "pnpm exec tsx tools/ensure-skills-links.ts",
-    "cleanup:node-leaks": "sh scripts/cleanup-node-leaks.sh"
+    "cleanup:node-leaks": "sh scripts/cleanup-node-leaks.sh",
+    "sync:github-skills": "pnpm exec tsx tools/sync-github-skills.ts"
   },
   "pnpm": {
     "overrides": {

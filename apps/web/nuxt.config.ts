@@ -6,10 +6,46 @@ const APP_NAME = process.env.APP_NAME?.trim()
   ? process.env.APP_NAME.trim().replace(/^tideye$/i, 'Tideye')
   : 'Tideye'
 
+const appBackendPreset =
+  process.env.APP_BACKEND_PRESET === 'managed-supabase' ? 'managed-supabase' : 'default'
+const configuredAuthBackend = process.env.AUTH_BACKEND
+const supabaseUrl = process.env.AUTH_AUTHORITY_URL || process.env.SUPABASE_URL || ''
+const supabasePublishableKey =
+  process.env.SUPABASE_PUBLISHABLE_KEY ||
+  process.env.SUPABASE_ANON_KEY ||
+  process.env.SUPABASE_AUTH_ANON_KEY ||
+  ''
+const supabaseServiceRoleKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_AUTH_SERVICE_ROLE_KEY || ''
+const authBackend =
+  configuredAuthBackend === 'supabase' || configuredAuthBackend === 'local'
+    ? configuredAuthBackend
+    : supabaseUrl && supabasePublishableKey
+      ? 'supabase'
+      : 'local'
+const authAuthorityUrl = supabaseUrl
+const appOrmTablesEntry =
+  process.env.NUXT_DATABASE_BACKEND === 'postgres'
+    ? './server/database/pg-app-schema.ts'
+    : './server/database/app-schema.ts'
+
+function parseAuthProviders(value: string | undefined) {
+  return (value || 'apple,email')
+    .split(',')
+    .map((provider) => provider.trim().toLowerCase())
+    .filter((provider, index, providers) => provider && providers.indexOf(provider) === index)
+}
+
+const authProviders =
+  authBackend === 'supabase' ? parseAuthProviders(process.env.AUTH_PROVIDERS) : ['email']
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   // Extend the published Narduk Nuxt Layer
   extends: ['@narduk-enterprises/narduk-nuxt-template-layer'],
+
+  alias: {
+    '#server/app-orm-tables': fileURLToPath(new URL(appOrmTablesEntry, import.meta.url)),
+  },
 
   // nitro-cloudflare-dev proxies D1 bindings to the local dev server
   modules: ['nitro-cloudflare-dev', '@pinia/nuxt'],
@@ -31,6 +67,16 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    appBackendPreset,
+    authBackend,
+    authAuthorityUrl,
+    authAnonKey: supabasePublishableKey,
+    authServiceRoleKey: supabaseServiceRoleKey,
+    authStorageKey: process.env.AUTH_STORAGE_KEY || 'web-auth',
+    turnstileSecretKey: process.env.TURNSTILE_SECRET_KEY || '',
+    supabaseUrl,
+    supabasePublishableKey,
+    supabaseServiceRoleKey,
     // Apple Maps Server API (reverse geocode for voyage titles via /api/passages/:id/places)
     mapkitServerApiKey: process.env.MAPKIT_SERVER_API_KEY || '',
     appleTeamId: process.env.APPLE_TEAM_ID || '',
